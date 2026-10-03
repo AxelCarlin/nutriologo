@@ -23,11 +23,12 @@
 - Tipos: `int`/`smallint`/`decimal`/`varchar`/`text`/`datetime`, `jsonb` (análisis de IA, bounding boxes, interpretación), `vector` (embeddings de predicciones).
 - 0 `INSERT`, 0 índices secundarios explícitos, 0 `CREATE EXTENSION`.
 
-### Contradicciones / hallazgos
+### Contradicciones / hallazgos (resueltos)
 
-1. Se usa el tipo `vector` (línea ~880) sin `CREATE EXTENSION vector;` → el script fallará en PostgreSQL estándar. Requiere `pgvector`.
-2. Sin índices secundarios: revisar FKs de alto uso en Fase B/C.
-3. Dialecto PostgreSQL con `datetime` (alias de `timestamp`).
+1. ~~`vector` sin `CREATE EXTENSION`~~ → resuelto: imagen `pgvector/pgvector:pg17` + `CREATE EXTENSION IF NOT EXISTS vector;` al inicio del script.
+2. ~~`datetime` no existe en PostgreSQL~~ → resuelto: reemplazo global `datetime` → `timestamp` (188 ocurrencias), sin cambiar nombres ni relaciones. Verificado: carga completa desde base vacía (78 tablas, 273 FKs, columna `AlimentoEmbedding.Vector` tipo `vector` presente).
+3. Warning de collation (2.41 vs 2.36): documentado, no es error del esquema; resuelto con `ALTER DATABASE ... REFRESH COLLATION VERSION`.
+4. Sin índices secundarios: revisar FKs de alto uso en Fase B/C.
 
 ## A3 — Solución creada
 

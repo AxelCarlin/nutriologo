@@ -34,6 +34,10 @@ NutriologoDB.sql
 docker compose up -d
 ```
 
+**Dependencia de base de datos:** PostgreSQL 17 + extensión **pgvector** (imagen `pgvector/pgvector:pg17`). El script ejecuta `CREATE EXTENSION IF NOT EXISTS vector;` al inicio; la columna `AlimentoEmbedding.Vector` es de tipo `vector`.
+
+**Nota:** se usa `timestamp` (sin zona horaria) en todo el esquema, por decisión original del diseño.
+
 Conexión: `Host=localhost;Port=5432;Database=nutriologo;Username=postgres;Password=Buss1ness.2026`
 
 ## Build y tests
