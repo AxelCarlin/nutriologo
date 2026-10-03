@@ -1,0 +1,6 @@
+@Nutriologo.Api_HostAddress = http://localhost:5078
+
+GET {{Nutriologo.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

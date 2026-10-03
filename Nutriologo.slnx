@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Nutriologo.Api/Nutriologo.Api.csproj" />
+    <Project Path="src/Nutriologo.Application/Nutriologo.Application.csproj" />
+    <Project Path="src/Nutriologo.Domain/Nutriologo.Domain.csproj" />
+    <Project Path="src/Nutriologo.Infrastructure/Nutriologo.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Nutriologo.Application.Tests/Nutriologo.Application.Tests.csproj" />
+    <Project Path="tests/Nutriologo.Domain.Tests/Nutriologo.Domain.Tests.csproj" />
+    <Project Path="tests/Nutriologo.Infrastructure.Tests/Nutriologo.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>
