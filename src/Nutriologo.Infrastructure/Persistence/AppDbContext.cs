@@ -3,6 +3,7 @@ namespace Nutriologo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Nutriologo.Domain.Catalog;
 using Nutriologo.Domain.Entities;
+using Nutriologo.Domain.Recipes;
 using Nutriologo.Infrastructure.Persistence.Configurations;
 
 public class AppDbContext : DbContext
@@ -27,11 +28,15 @@ public class AppDbContext : DbContext
     public DbSet<BaseNutricionalAlimento> BasesNutricionales => Set<BaseNutricionalAlimento>();
     public DbSet<ConversionUnidad> ConversionesUnidad => Set<ConversionUnidad>();
     public DbSet<PorcionAlimento> PorcionesAlimento => Set<PorcionAlimento>();
+    public DbSet<RecetaAlimento> RecetasAlimento => Set<RecetaAlimento>();
+    public DbSet<IngredienteReceta> IngredientesReceta => Set<IngredienteReceta>();
+    public DbSet<RecetaUsuario> RecetasUsuario => Set<RecetaUsuario>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         CatalogMapping.ApplyCatalog(modelBuilder);
+        RecipesMapping.ApplyRecipes(modelBuilder);
         base.OnModelCreating(modelBuilder);
     }
 }
