@@ -2,7 +2,9 @@ namespace Nutriologo.Infrastructure.Persistence;
 
 using Microsoft.EntityFrameworkCore;
 using Nutriologo.Domain.Catalog;
+using Nutriologo.Domain.Consumption;
 using Nutriologo.Domain.Entities;
+using Nutriologo.Domain.Plans;
 using Nutriologo.Domain.Recipes;
 using Nutriologo.Infrastructure.Persistence.Configurations;
 
@@ -31,12 +33,31 @@ public class AppDbContext : DbContext
     public DbSet<RecetaAlimento> RecetasAlimento => Set<RecetaAlimento>();
     public DbSet<IngredienteReceta> IngredientesReceta => Set<IngredienteReceta>();
     public DbSet<RecetaUsuario> RecetasUsuario => Set<RecetaUsuario>();
+    public DbSet<PlanAlimenticio> PlanesAlimenticios => Set<PlanAlimenticio>();
+    public DbSet<DiaPlanAlimenticio> DiasPlan => Set<DiaPlanAlimenticio>();
+    public DbSet<ComidaPlan> ComidasPlan => Set<ComidaPlan>();
+    public DbSet<AlimentoComidaPlan> AlimentosComidaPlan => Set<AlimentoComidaPlan>();
+    public DbSet<RegistroComida> RegistrosComida => Set<RegistroComida>();
+    public DbSet<AlimentoRegistroComida> AlimentosRegistroComida => Set<AlimentoRegistroComida>();
+    public DbSet<BalanceCalorico> BalancesCaloricos => Set<BalanceCalorico>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         CatalogMapping.ApplyCatalog(modelBuilder);
         RecipesMapping.ApplyRecipes(modelBuilder);
+        PlansConsumptionMapping.Apply(modelBuilder);
         base.OnModelCreating(modelBuilder);
+        // Schema usa timestamp (sin zona): normaliza DateTime UTC a Kind=Unspecified.
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        foreach (var prop in entityType.GetProperties())
+        {
+            if (prop.ClrType == typeof(DateTime))
+                prop.SetValueConverter(new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+                    v => v.Kind == DateTimeKind.Utc ? DateTime.SpecifyKind(v, DateTimeKind.Unspecified) : v, v => v));
+            else if (prop.ClrType == typeof(DateTime?))
+                prop.SetValueConverter(new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime?, DateTime?>(
+                    v => v.HasValue && v.Value.Kind == DateTimeKind.Utc ? DateTime.SpecifyKind(v.Value, DateTimeKind.Unspecified) : v, v => v));
+        }
     }
 }

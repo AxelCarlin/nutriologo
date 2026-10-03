@@ -137,6 +137,18 @@ JOIN "Alimento" a ON a."Nombre" = v.nombre
 JOIN "UnidadMedida" u ON u."Codigo" = v.um
 WHERE NOT EXISTS (SELECT 1 FROM "PorcionAlimento" p WHERE p."IdAlimento" = a."Id" AND p."Descripcion" = v.descr);
 
+INSERT INTO "TipoPlanAlimenticio" ("Codigo","Descripcion","FechaCreacion","FechaModificacion","Estatus","IdUsuarioCrea")
+SELECT v.c, v.d, now(), now(), 1, 1 FROM (VALUES ('PERSONALIZADO','Personalizado'),('PROFESIONAL','Indicado por profesional')) v(c,d)
+WHERE NOT EXISTS (SELECT 1 FROM "TipoPlanAlimenticio" t WHERE t."Codigo" = v.c);
+
+INSERT INTO "OrigenPlanAlimenticio" ("Codigo","Descripcion","FechaCreacion","FechaModificacion","Estatus","IdUsuarioCrea")
+SELECT v.c, v.d, now(), now(), 1, 1 FROM (VALUES ('MANUAL','Manual'),('IMPORTACION','Importado'),('IA','Generado por IA')) v(c,d)
+WHERE NOT EXISTS (SELECT 1 FROM "OrigenPlanAlimenticio" o WHERE o."Codigo" = v.c);
+
+INSERT INTO "TipoComida" ("Codigo","Descripcion","Orden","FechaCreacion","FechaModificacion","Estatus","IdUsuarioCrea")
+SELECT v.c, v.d, v.o, now(), now(), 1, 1 FROM (VALUES ('DESAYUNO','Desayuno',1),('COLACION_AM','Colación matutina',2),('COMIDA','Comida',3),('COLACION_PM','Colación vespertina',4),('CENA','Cena',5)) v(c,d,o)
+WHERE NOT EXISTS (SELECT 1 FROM "TipoComida" t WHERE t."Codigo" = v.c);
+
 -- Reglas de riesgo por defecto (bandas de fase C).
 INSERT INTO "ReglaRiesgoObjetivo" ("Codigo","Descripcion","RitmoMinimo","RitmoMaximo","IdNivelRiesgo","Orden","FechaCreacion","FechaModificacion","Estatus","IdUsuarioCrea")
 SELECT v.c, v.d, v.min, v.max, n."Id", v.o, now(), now(), 1, 1 FROM (VALUES
