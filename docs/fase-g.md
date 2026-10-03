@@ -24,3 +24,16 @@
 
 - El LLM propone; Domain/Application valida y calcula. `Nutriologo.Domain` sigue sin dependencias de IA/Infra.
 - Tests: 55 Domain, 15 Application (incluye classifier, policy, rangos inválidos), 2 Infrastructure; build 0 errores.
+
+## G3 — Resolución determinista de alimentos
+
+`DeterministicFoodResolver` (Domain, puro, sin embeddings):
+
+1. Normalización: minúsculas, sin acentos, espacios colapsados, singularización simple.
+2. Puntuación: exacta 1.0 / normalizada-singular 0.95 / sinónimo 0.9 / parcial 0.65.
+3. Contexto: preparación/cocina coincidente suma +0.15; contradictoria resta −0.25.
+4. Decisión: candidato único con score ≥ 0.85 → resuelto; si no, múltiples candidatos + `RequiereAclaracion`.
+5. Nunca crea entidades: inexistente/ambiguo → aclaración; catálogo vacío → aclaración.
+6. Sin fuzzy matching con dependencias externas ni pgvector hasta medir G7.
+
+Tests: 67/67 Domain (incluye plantillas de todos los casos solicitados). Commit `7940c81`.
