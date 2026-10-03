@@ -37,3 +37,15 @@
 6. Sin fuzzy matching con dependencias externas ni pgvector hasta medir G7.
 
 Tests: 67/67 Domain (incluye plantillas de todos los casos solicitados). Commit `7940c81`.
+
+## G4/G5 — Aclaraciones
+
+`ClarificationGenerator` (Application) implementa `IClarificationGenerator` como adaptador: prioriza (preparación > cantidad > incertidumbre declarada) y redacta la pregunta; **no decide** si preguntar (`ClarificationPolicy` ya lo hace). Tests de caso de uso: alimento/cantidad/preparación/confianza baja/información suficiente/múltiples incertidumbres.
+
+## G6 — Visión (esqueleto sin Ollama)
+
+`AnalyzeMealImageUseCase`: `IVisionAnalyzer` → `VisionAnalysis` → `DeterministicFoodResolver` (mismo resolver de G3). Trabaja con adapter falso en tests; no produce calorías ni "verdad nutricional" desde la visión (test `Pipeline_Vision_Resolver_SinPersistirVerdad`). Persistencia real vía entidades existentes (`Imagen`, `AnalisisImagen`, `PrediccionAlimento`, `EstadoProcesamiento`, `AlimentoEmbedding`) en fases posteriores.
+
+## G7 — Evaluación comparativa
+
+Baseline determinista sobre el catálogo seed: 18/18 correctos, 0 falsos positivos, ~2 ms (`docs/eval-g7.md`). Conclusión: matching determinista suficiente para el catálogo actual; la comparación con pgvector/híbrido se difiere a post-G8 con embeddings disponibles y catálogo real.
