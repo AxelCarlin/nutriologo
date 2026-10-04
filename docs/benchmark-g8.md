@@ -37,6 +37,12 @@ Notas:
 
 Verificado: durante la inferencia `nvidia-smi` muestra VRAM 4.8–7.2 GB según modelo y GPU-Util > 0 — la aceleración GPU está activa.
 
+## G8.7 / G8.8 / G8.9 — Cierre
+
+- **G8.7 Guard:** `StructuredOutputValidator` valida esquema (json válido, `intencion`, `requiere_aclaracion`, `alimentos[]` con `nombre`, `cantidad>0`, `confianza∈[0,1]`), fuerza aclaración cuando intención=registrar_comida sin candidatos, y fuerza candidato "(sin identificar)" con incertidumbre. Re-benchmark con prompt reforzado: **los 3 modelos ahora piden aclaración en "Comí pizza" y en "Comí unos tacos"** (antes fallaban sistemáticamente).
+- **G8.8 Decisión:** `qwen2.5:7b-instruct-q4_K_M` = modelo de texto inicial para GTX 1070 8 GB/~15 GB RAM, basado en latencia (~207 t/s, ~2 s/caso), VRAM ~4.8 GB, JSON siempre válido. No es "mejor universal".
+- **G8.9 Adapter:** `OllamaChatInterpreter` en Infrastructure implementa `IChatInterpreter`; DI `AddOllama` lee `Ollama:BaseUrl`/`Ollama:Model`; Domain/Application sin cambios; test de integración real contra `127.0.0.1:11434` pasa.
+
 ## Arquitectura
 
 Ollama permanece detrás de `IChatInterpreter`/`IVisionAnalyzer`/`IFoodCandidateResolver`/`IClarificationGenerator`. Domain y Application no modificados. No se persisten resultados experimentales como producción.
