@@ -80,6 +80,9 @@ const isError = computed(() => conversationState.value === 'error')
 const isAwaitingClarification = computed(() => conversationState.value === 'awaiting-clarification')
 const isThinkingOrSpeaking = computed(() => orbState.value === 'thinking' || orbState.value === 'speaking')
 
+// Mensajes del chat - límite máximo para mantener performance
+const MAX_HISTORIAL = 100
+
 // Mensajes del chat
 const mensajes = ref<{ id: number; rol: string; texto: string }[]>([])
 const texto = ref('')
@@ -88,8 +91,12 @@ const error = ref('')
 const exito = ref('')
 let nextId = 1
 
-// Mensaje de aclaración cuando el LLM necesita más info
-const needsClarificationMessage = 'Necesito más información sobre tu comida para darte una recomendación adecuada.'
+// Plantilla de aclaración cuando el LLM necesita más info
+const needsClarificationMessage =
+  'Necesito más información sobre tu comida para darte una recomendación adecuada.'
+
+// Configuración de contexto LLM
+const MAX_MENSAJES_HISTORIAL = 6 // Siempre enviamos últimos 6 al LLM
 
 function copiar(t: string) {
   navigator.clipboard?.writeText(t).catch(() => {})
@@ -103,29 +110,88 @@ function nueva() {
   orbState.value = 'idle'
 }
 
+// Función para resumir historial cuando se acerca el límite
+function resumirContexto(historialActual: Array<{ rol: string; texto: string }>): Array<{ rol: string; texto: string }> {
+  if (historialActual.length <= MAX_MENSAJES_HISTORIAL) {
+    return historialActual
+  }
+
+  // Tomar solo los mensajes más relevantes (primeros y últimos)
+  const primeros = historialActual.slice(0, 2)
+  const ultimos = historialActual.slice(-2)
+
+  // Construir un resumen de temas únicos
+  const temasSet = new Set<string>()
+  for (const m of historialActual) {
+    const textoLower = (m.texto || '').toLowerCase()
+    // Detectar temas nutricionales comunes
+    const matches = textoLower.match(
+      /(huevos?|tortilla|pollo|carne|pescado|arroz|frijoles|ensalada|fruta|verdura)/gi
+    )
+    if (matches) {
+      matches.forEach((m: string) => temasSet.add(m.toLowerCase()))
+    }
+  }
+
+  // Construir resumen compacto
+  const temasArray = Array.from(temasSet).slice(0, 3)
+  const resumenTexto =
+    temasArray.length > 0
+      ? `Conversación previa sobre: ${temasArray.join(', ')}. `
+      : 'Conversación previa sobre alimentos.'
+
+  // Retornar estructura: primeros + resumen + últimos
+  return [
+    ...primeros,
+    { rol: 'system', texto: resumenTexto },
+    ...ultimos,
+  ]
+}
+
+// Función para normalizar historial antes de enviar
+function normalizarHistorial(): Array<{ rol: string; texto: string }> {
+  // Mantener solo los últimos MAX_MENSAJES_HISTORIAL mensajes
+  const historialReciente = mensajes.value.slice(-MAX_MENSAJES_HISTORIAL)
+
+  // Verificar si necesita resumen
+  if (historialReciente.length <= MAX_MENSAJES_HISTORIAL) {
+    return historialReciente.map((m: { rol: string; texto: string }) => ({
+      rol: m.rol,
+      texto: m.texto || '',
+    }))
+  }
+
+  // Aplicar resumen
+  return resumirContexto(historialReciente)
+}
+
 async function enviar() {
   if (!texto.value.trim() || enviando.value) return
 
   // 1. Mostrar mensaje de usuario
   mensajes.value.push({ id: nextId++, rol: 'user', texto: texto.value })
 
-  // 2. Actualizar estados
+  // 2. Mantener historial dentro de límites
+  if (mensajes.value.length > MAX_HISTORIAL) {
+    mensajes.value = mensajes.value.slice(-MAX_HISTORIAL)
+  }
+
+  // 3. Normalizar y preparar historial para el LLM
+  const historial = normalizarHistorial()
+
+  // 4. Actualizar estados
   conversationState.value = 'active'
   orbState.value = 'thinking'
   error.value = ''
 
-  // 3. Preparar historial: últimos 6 mensajes formateados para el LLM
-  const historial = mensajes.value
-    .slice(-6)
-    .map((m: any) => ({ rol: m.rol, texto: m.texto }))
-
+  // 5. Enviar al LLM
   try {
     const r = await apiFetch<any>('/conversacion/mensaje', {
       method: 'POST',
       body: JSON.stringify({ texto: texto.value, historial }),
     })
 
-    // 3. Manejar respuesta del LLM
+    // 6. Manejar respuesta del LLM
     if (r.tipo === 'registrado') {
       mensajes.value.push({ id: nextId++, rol: 'assistant', texto: 'Comida registrada correctamente.' })
       exito.value = `Comida #${r.id} registrada.`
