@@ -60,11 +60,16 @@ def main():
         rows.append((c['input'], c['expected'], tipo, resultado, round(lat, 2)))
         print(f"{resultado:28} lat={lat:5.1f}s  '{c['input']}' -> {tipo}")
 
-    # Limpiar registros creados por el eval
-    if max_before is not None:
-        subprocess.run(['sudo', '-S', 'docker', 'exec', 'nutriologo-db', 'psql', '-U', 'postgres', '-d', 'nutriologo',
+    # Limpiar registros creados por el eval (requiere docker con sudo + password en EVAL_SUDO_PW)
+    import os as _os
+    _pw = _os.environ.get('EVAL_SUDO_PW', '')
+    if max_before is not None and _pw:
+        p = subprocess.run(['sudo', '-S', 'docker', 'exec', 'nutriologo-db', 'psql', '-U', 'postgres', '-d', 'nutriologo',
                         '-c', f'DELETE FROM "AlimentoRegistroComida" WHERE "IdRegistroComida" > {max_before}; DELETE FROM "RegistroComida" WHERE "Id" > {max_before};'],
-                       stdin=subprocess.DEVNULL, capture_output=True)
+                       input=_pw, capture_output=True, text=True)
+        if p.returncode != 0: print('AVISO: cleanup no ejecutado:', p.stderr[:200])
+    elif max_before is not None:
+        print('AVISO: EVAL_SUDO_PW no definido; registros del eval pueden quedar en la DB.')
 
     total = len(cases)
     report = [
