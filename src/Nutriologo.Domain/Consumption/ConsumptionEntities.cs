@@ -21,6 +21,17 @@ public class RegistroComida : AuditableEntity
         if (FechaConsumo == default) throw new DomainException("FechaConsumo requerida.");
         if (CaloriasEstimadas is not null && CaloriasEstimadas < 0) throw new DomainException("CaloriasEstimadas no puede ser negativa.");
     }
+
+    public RegistroComida() { }
+
+    public RegistroComida(int idUsuario, DateTime fechaConsumo, string? nombre = null, int? idTipoComida = null,
+        decimal? caloriasEstimadas = null, string? descripcion = null, string? observacion = null, int idUsuarioCrea = 1)
+    {
+        IdUsuario = idUsuario; FechaConsumo = fechaConsumo; Nombre = nombre; IdTipoComida = idTipoComida;
+        CaloriasEstimadas = caloriasEstimadas; Descripcion = descripcion; Observacion = observacion;
+        IdUsuarioCrea = idUsuarioCrea; FechaCreacion = DateTime.UtcNow; FechaModificacion = DateTime.UtcNow; Estatus = 1;
+        DatosValidos();
+    }
 }
 
 public class AlimentoRegistroComida : AuditableEntity
@@ -39,6 +50,18 @@ public class AlimentoRegistroComida : AuditableEntity
         if (Cantidad <= 0) throw new DomainException("Cantidad consumida debe ser positiva.");
         if (CaloriasEstimadas is not null && CaloriasEstimadas < 0) throw new DomainException("CaloriasEstimadas no puede ser negativa.");
         if (Confianza is not null && (Confianza < 0 || Confianza > 1)) throw new DomainException("Confianza debe estar en [0,1].");
+    }
+
+    public AlimentoRegistroComida() { }
+
+    public AlimentoRegistroComida(int idRegistroComida, int idAlimento, int idUnidadMedida, decimal cantidad,
+        decimal? caloriasEstimadas = null, decimal? confianza = null, string? observacion = null, int idUsuarioCrea = 1)
+    {
+        IdRegistroComida = idRegistroComida; IdAlimento = idAlimento; IdUnidadMedida = idUnidadMedida;
+        Cantidad = cantidad; CaloriasEstimadas = caloriasEstimadas; Confianza = confianza;
+        Observacion = observacion; IdUsuarioCrea = idUsuarioCrea;
+        FechaCreacion = DateTime.UtcNow; FechaModificacion = DateTime.UtcNow; Estatus = 1;
+        DatosValidos();
     }
 }
 

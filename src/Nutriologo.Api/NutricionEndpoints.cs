@@ -1,4 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Nutriologo.Application.Meals;
+using Nutriologo.Domain.Catalog;
+using Nutriologo.Domain.Consumption;
 using Nutriologo.Domain.Entities;
 using Nutriologo.Domain.Exceptions;
 using Nutriologo.Domain.Nutrition;
@@ -27,6 +30,67 @@ public static class NutricionEndpoints
             db.MedicionesCorporales.Add(m);
             await db.SaveChangesAsync();
             return Results.Created($"/api/mediciones/{m.Id}", new { m.Id });
+        });
+
+        g.MapGet("/alimentos", async (AppDbContext db) =>
+            await db.Alimentos.OrderBy(a => a.Nombre).Select(a => new { a.Id, a.Nombre }).ToListAsync());
+
+        g.MapPost("/comidas", async (ComidaRequest r, AppDbContext db, IFoodCatalogSource catalog) =>
+        {
+            var v = RegisterMealValidator.Validate(new MealInput(r.IdUsuario, r.FechaConsumo, r.Items), catalog);
+            if (!v.Exito) return Results.BadRequest(new { v.RequiereAclaracion, v.Mensaje });
+
+            var comida = new RegistroComida(r.IdUsuario, r.FechaConsumo, r.Nombre);
+            db.RegistrosComida.Add(comida);
+            await db.SaveChangesAsync();
+
+            decimal? totalKcal = null;
+            for (int i = 0; i < r.Items.Count; i++)
+            {
+                var it = r.Items[i];
+                var unidad = await db.UnidadesMedida.FirstOrDefaultAsync(u => u.Codigo == it.Unidad.ToUpperInvariant());
+                if (unidad is null) return Results.BadRequest(new { error = $"Unidad desconocida: {it.Unidad}" });
+
+                // Derivar calorías del catálogo (determinista), sin duplicar fórmulas.
+                var alimentoFuente = await db.AlimentosFuente.FirstOrDefaultAsync(af => af.IdAlimento == v.Alimentos[i].IdAlimento);
+                decimal? kcal = null;
+                if (alimentoFuente is not null)
+                {
+                    var baseNutr = await db.BasesNutricionales.FirstOrDefaultAsync(b => b.IdAlimentoFuente == alimentoFuente.Id);
+                    var energia = await db.AlimentosNutriente
+                        .Join(db.Nutrientes, an => an.IdNutriente, n => n.Id, (an, n) => new { an, n })
+                        .Where(x => x.an.IdAlimentoFuente == alimentoFuente.Id && x.n.Codigo == "ENERGIA")
+                        .Select(x => x.an.Cantidad)
+                        .FirstOrDefaultAsync();
+                    if (baseNutr is not null && energia > 0)
+                        kcal = NutricionScaling.Escalar(energia, baseNutr.CantidadBase, it.Cantidad);
+                }
+
+                db.AlimentosRegistroComida.Add(new AlimentoRegistroComida(comida.Id, v.Alimentos[i].IdAlimento, unidad.Id, it.Cantidad, kcal));
+                if (kcal is not null) totalKcal = (totalKcal ?? 0m) + kcal;
+            }
+            if (totalKcal is not null)
+                typeof(RegistroComida).GetProperty("CaloriasEstimadas")!.SetValue(comida, totalKcal);
+            await db.SaveChangesAsync();
+            return Results.Created($"/api/comidas/{comida.Id}", new { id = comida.Id });
+        });
+
+        g.MapGet("/comidas", async (int idUsuario, DateTime? fecha, AppDbContext db) =>
+        {
+            var q = db.RegistrosComida.Where(x => x.IdUsuario == idUsuario);
+            if (fecha is not null) q = q.Where(x => x.FechaConsumo.Date == fecha.Value.Date);
+            var items = await q.OrderByDescending(x => x.FechaConsumo)
+                .Select(x => new { x.Id, x.FechaConsumo, x.Nombre, x.CaloriasEstimadas })
+                .ToListAsync();
+            return Results.Ok(items);
+        });
+
+        g.MapGet("/balance", async (int idUsuario, DateTime fecha, AppDbContext db) =>
+        {
+            var consumidas = await db.RegistrosComida
+                .Where(x => x.IdUsuario == idUsuario && x.FechaConsumo.Date == fecha.Date)
+                .SumAsync(x => (decimal?)x.CaloriasEstimadas) ?? 0m;
+            return Results.Ok(new { fecha = fecha.Date, caloriasConsumidas = consumidas });
         });
 
         g.MapGet("/mediciones", async (int idUsuario, AppDbContext db) =>
@@ -79,6 +143,7 @@ public static class NutricionEndpoints
         });
     }
 
+    public record ComidaRequest(int IdUsuario, DateTime FechaConsumo, string? Nombre, IReadOnlyList<MealItemInput> Items);
     public record PerfilRequest(int IdUsuario, int IdSexoBiologico, int IdNivelActividadFisica, DateTime FechaNacimiento, decimal Altura, string? AlturaUnidad);
     public record MedicionRequest(int IdUsuario, int IdTipoMedicionCorporal, decimal Valor, DateTime FechaMedicion, string? Observacion);
     public record ObjetivoRequest(decimal PesoKg, decimal AlturaCm, int EdadAnios, SexoBiologico Sexo, decimal FactorActividad, TipoObjetivo TipoObjetivo, decimal? PesoObjetivoKg, decimal? SemanasObjetivo, EstadoFisiologicoCodigo Estado = EstadoFisiologicoCodigo.Ninguno);

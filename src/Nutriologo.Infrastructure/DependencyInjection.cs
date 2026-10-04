@@ -10,6 +10,7 @@ public static class DependencyInjection
     {
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
+        services.AddScoped<Nutriologo.Domain.Catalog.IFoodCatalogSource, Nutriologo.Infrastructure.Catalog.EfCoreFoodCatalogSource>();
         return services;
     }
 }
