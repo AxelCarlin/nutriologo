@@ -2,7 +2,7 @@
 
 ## K1–K3 Docker Compose + persistencia + configuración
 
-- `docker-compose.yml`: `postgres` (pgvector/pgvector:pg17, volumen `pgdata`, healthcheck), `ollama` (volumen `/usr/share/ollama/.ollama`), `api` (build desde `src/Nutriologo.Api/Dockerfile`, env-based config, healthcheck), `web` (nginx sirviendo build estático), `caddy` (reverse proxy y estático).
+- `docker-compose.yml`: `postgres` (pgvector/pgvector:pg17, volumen `pgdata`, healthcheck), `ollama` (volumen `/usr/share/ollama/.ollama`), `api` (build desde `src/Nutriologo.Api/Dockerfile`, env-based config, healthcheck), `web` (nginx sirviendo build estático, puerto 3000). Sin reverse proxy en el stack: la exposición pública se hará vía dominio + cloudflared (fuera del compose).
 - Secretos por variables de entorno (`.env` gitignored): ningún secreto en git tras J5.
 - Verificado: `docker compose up -d --build` levanta todo, `http://localhost/health` responde, `/api/alimentos` devuelve catálogo.
 
@@ -19,10 +19,10 @@
 
 ## K5 Observabilidad mínima
 
-- Healthchecks en Compose para postgres/ollama/api; Caddy expone `/health`.
+- Healthchecks en Compose para postgres/ollama/api; `/health` expuesto directo por el Api (8080).
 - Logs de estructura estándar del Api; middleware de errores no expone internals.
 
-## K6 Smoke test del despliegue (todo a través de Caddy)
+## K6 Smoke test del despliegue (directo a api:8080 y web:3000, sin proxy)
 
 - Frontend `curl /` → HTML estático.
 - `/health` → `{"status":"ok"}`.

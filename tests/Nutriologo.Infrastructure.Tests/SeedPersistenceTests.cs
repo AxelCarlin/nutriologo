@@ -10,8 +10,10 @@ public class SeedPersistenceTests
     {
         try
         {
+            var cs = System.Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+                ?? "Host=localhost;Port=5432;Database=nutriologo;Username=postgres;Password=SET_VIA_ENV";
             var options = new DbContextOptionsBuilder<AppDbContext>()
-                .UseNpgsql("Host=localhost;Port=5432;Database=nutriologo;Username=postgres;Password=Buss1ness.2026")
+                .UseNpgsql(cs)
                 .Options;
             var ctx = new AppDbContext(options);
             return ctx.Database.CanConnect() ? ctx : null;

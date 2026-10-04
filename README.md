@@ -38,7 +38,7 @@ docker compose up -d
 
 **Nota:** se usa `timestamp` (sin zona horaria) en todo el esquema, por decisión original del diseño.
 
-Conexión: `Host=localhost;Port=5432;Database=nutriologo;Username=postgres;Password=Buss1ness.2026`
+Conexión local (desarrollo): `Host=localhost;Port=5432;Database=nutriologo;Username=postgres;Password=<POSTGRES_PASSWORD>` (ver `.env`, no versionado).
 
 ## Build y tests
 
@@ -54,6 +54,7 @@ echo 'POSTGRES_PASSWORD=<tu_password>' > .env
 docker compose up -d --build
 ```
 
-Servicios: postgres+pgvector (5432), ollama (11434), api (8080), web (3000), caddy (80).
+Servicios: postgres+pgvector (5432), ollama (11434), api (8080), web (3000).
+Exposición pública: pendiente vía dominio + cloudflared (sin Caddy en el stack).
 Backups: `scripts/backup.sh`, restauración: `scripts/restore.sh`.
 ```

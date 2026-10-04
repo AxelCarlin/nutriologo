@@ -5,7 +5,7 @@
 | Bloque | Evidencia / decisión |
 |---|---|
 | Rate limiting | `AddRateLimiter` con política `business` (100 req/min por ventana fija) aplicada a `/api/*` y `/api/conversacion/mensaje`. Probado: ráfaga de 105 → 99×200, luego **429 ×6**. `/health` aislado. |
-| Credenciales en repo | `appsettings.json` pasa a placeholder `SET_VIA_ENV_...`; el valor real vive en `appsettings.Development.json` (ahora en `.gitignore`, Desvinculado del tracking). None de `Buss1ness.2026` versionado ya en blobs posteriores este commit. |
+| Credenciales en repo | `appsettings.json` usa placeholder `SET_VIA_ENV_...`; el valor real vive solo en `appsettings.Development.json` y `.env` (ambos en `.gitignore`, no versionados). Tests usan `ConnectionStrings__DefaultConnection` con placeholder por defecto. |
 | Aisling por usuario | Test existente de balance con `idUsuario=999`; el aislamiento formal se audita mejor al introducir autenticación real. |
 | Prompt injection / fail-closed | J4: 0 falsos positivos en los tres modelos; J1: pizza → aclaración, sin persistir. El LLM no ejecuta operaciones; persistsvia `RegisterMealValidator`/`MealRegistrar`. |
 | Secrets en logs | El código no registra prompts ni respuestas IA; middleware de errores devuelve mensaje genérico. Revisión inicial de `Program.cs`/adapters: sin `Console.WriteLine` de payload. |
