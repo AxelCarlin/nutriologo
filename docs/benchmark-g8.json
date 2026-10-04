@@ -1,0 +1,41 @@
+[
+  {
+    "model": "qwen2.5:7b-instruct-q4_K_M",
+    "json_ok": 6,
+    "food": 4,
+    "qty": 6,
+    "unit": 6,
+    "prep": 6,
+    "clarify": 5,
+    "n": 6,
+    "latency": 12.316816329956055,
+    "tps": 206.71735055896318,
+    "vram": 4802
+  },
+  {
+    "model": "llama3.1:8b-instruct-q4_K_M",
+    "json_ok": 5,
+    "food": 4,
+    "qty": 5,
+    "unit": 5,
+    "prep": 5,
+    "clarify": 4,
+    "n": 6,
+    "latency": 13.920110702514648,
+    "tps": 162.82093807057555,
+    "vram": 5296
+  },
+  {
+    "model": "gemma2:9b-instruct-q4_K_M",
+    "json_ok": 6,
+    "food": 5,
+    "qty": 6,
+    "unit": 6,
+    "prep": 6,
+    "clarify": 4,
+    "n": 6,
+    "latency": 21.088547468185425,
+    "tps": 143.68497256130303,
+    "vram": 7186
+  }
+]
