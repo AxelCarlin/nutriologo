@@ -1,3 +1,4 @@
+using Nutriologo.Api;
 using Nutriologo.Api.Middleware;
 using Nutriologo.Infrastructure.AI;
 using Nutriologo.Infrastructure.Persistence;
@@ -18,5 +19,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
+
+app.MapNutricion();
 
 app.Run();
