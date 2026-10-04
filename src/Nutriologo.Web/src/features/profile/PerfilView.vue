@@ -1,16 +1,16 @@
 <template>
-  <section>
+  <section class="form-screen">
     <h2>Perfil</h2>
-    <form @submit.prevent="guardar">
-      <label>Fecha de nacimiento <input v-model="form.fechaNacimiento" type="date" required /></label>
-      <label>Altura (cm) <input v-model.number="form.altura" type="number" required /></label>
-      <label>Sexo biológico (Id) <input v-model.number="form.idSexoBiologico" type="number" required /></label>
-      <label>Nivel de actividad (Id) <input v-model.number="form.idNivelActividadFisica" type="number" required /></label>
-      <button :disabled="loading">Guardar</button>
+    <form class="form-screen" @submit.prevent="guardar">
+      <div class="field"><label for="p-fecha">Fecha de nacimiento</label><input id="p-fecha" v-model="form.fechaNacimiento" type="date" required /></div>
+      <div class="field"><label for="p-altura">Altura (cm)</label><input id="p-altura" v-model.number="form.altura" type="number" required /></div>
+      <div class="field"><label for="p-sexo">Sexo biológico (Id)</label><input id="p-sexo" v-model.number="form.idSexoBiologico" type="number" required /></div>
+      <div class="field"><label for="p-act">Nivel de actividad (Id)</label><input id="p-act" v-model.number="form.idNivelActividadFisica" type="number" required /></div>
+      <div class="form-actions"><button class="btn-primary" :disabled="loading">Guardar</button></div>
     </form>
-    <p v-if="loading">Guardando…</p>
-    <p v-if="ok">Perfil guardado (Id {{ ok }}).</p>
-    <p v-if="error" class="error">{{ error }}</p>
+    <p v-if="loading" class="msg-status">Guardando…</p>
+    <p v-if="ok" class="form-ok">Perfil guardado (Id {{ ok }}).</p>
+    <p v-if="error" class="form-error">{{ error }}</p>
   </section>
 </template>
 

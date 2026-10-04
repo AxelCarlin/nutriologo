@@ -9,7 +9,7 @@
 
     <Orb :state="orbState" />
 
-    <div ref="scrollEl" class="chat-scroll">
+    <div class="chat-scroll">
       <div
         v-for="m in mensajes"
         :key="m.id"
@@ -56,7 +56,6 @@ const enviando = ref(false)
 const error = ref('')
 const exito = ref('')
 const orbState = ref<OrbState>('idle')
-const scrollEl = ref<HTMLElement | null>(null)
 let nextId = 1
 
 function copiar(t: string) {
@@ -88,7 +87,7 @@ async function enviar() {
     enviando.value = false
     texto.value = ''
     await nextTick()
-    scrollEl.value?.scrollTo({ top: scrollEl.value.scrollHeight })
+    window.scrollTo({ top: document.body.scrollHeight })
     setTimeout(() => { orbState.value = 'idle' }, 1200)
   }
 }

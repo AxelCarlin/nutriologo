@@ -2,7 +2,7 @@
 
 .orb-stage {
   position: relative;
-  height: 220px;
+  height: 180px;
   display: grid;
   place-items: center;
   flex-shrink: 0;

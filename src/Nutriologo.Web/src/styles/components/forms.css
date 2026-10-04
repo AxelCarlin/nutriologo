@@ -50,3 +50,95 @@
   font: 400 12px var(--font);
   color: var(--state-success);
 }
+
+.form-actions {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-glass);
+  border: 1px solid var(--border-default);
+  color: var(--text-1);
+  font: 600 12px/1 var(--font);
+  cursor: pointer;
+}
+
+.btn-ghost:hover {
+  background: var(--surface-glass-strong);
+}
+
+.item-row {
+  display: flex;
+  gap: 8px;
+}
+
+.item-row select,
+.item-row input {
+  height: 40px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-default);
+  color: var(--text-1);
+  font: 400 13px var(--font);
+  outline: none;
+  min-width: 0;
+}
+
+.item-row select {
+  flex: 2;
+}
+
+.item-row input {
+  flex: 1;
+}
+
+.result-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 14px;
+  padding: 14px;
+  border-radius: var(--radius-card);
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  font: 400 12.5px/1.45 var(--font);
+}
+
+.result-grid dt {
+  color: var(--text-3);
+}
+
+.result-grid dd {
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.data-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font: 400 12.5px/1.45 var(--font);
+  color: var(--text-2);
+}
+
+.data-list li {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-glass);
+  border: 1px solid var(--border-subtle);
+}
+
+.section-title {
+  font-size: 15px;
+  margin-top: var(--space-md);
+}
