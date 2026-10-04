@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import HomeView from '../../features/nutrition/HomeView.vue'
+import Inicio from "../../features/nutrition/Inicio.vue"
 import ObjetivoView from '../../features/nutrition/ObjetivoView.vue'
 import MedicionesView from '../../features/nutrition/MedicionesView.vue'
 import PerfilView from '../../features/profile/PerfilView.vue'
@@ -13,7 +13,7 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
-    { path: '/', name: 'home', component: HomeView },
+    { path: '/', name: 'home', component: Inicio },
     { path: '/objetivo', name: 'objetivo', component: ObjetivoView },
     { path: '/mediciones', name: 'mediciones', component: MedicionesView },
     { path: '/perfil', name: 'perfil', component: PerfilView },
