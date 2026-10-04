@@ -16,6 +16,10 @@ public static class OllamaDependencyInjection
             client.BaseAddress = new Uri(baseUrl);
             client.Timeout = TimeSpan.FromSeconds(120);
         });
+        var visionModel = config["Ollama:VisionModel"] ?? "qwen2.5vl:7b-q4_K_M";
+        services.AddScoped<IVisionAnalyzer>(sp =>
+            new OllamaVisionAnalyzer(
+                sp.GetRequiredService<IHttpClientFactory>().CreateClient(typeof(OllamaChatInterpreter).FullName!), visionModel));
         services.AddScoped<IChatInterpreter>(sp =>
             new OllamaChatInterpreter(
                 sp.GetRequiredService<IHttpClientFactory>().CreateClient(typeof(OllamaChatInterpreter).FullName!), model));
