@@ -6,9 +6,11 @@ MODELS = ["qwen2.5:7b-instruct-q4_K_M", "llama3.1:8b-instruct-q4_K_M", "gemma2:9
 
 SYSTEM = (
     "Eres un asistente de nutrición. Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional. "
-    "Esquema: {\"alimentos\":[{\"nombre\":string,\"cantidad\":number|null,\"unidad\":string|null,\"preparacion\":string|null,\"incertidumbres\":[string]}],"
-    "\"intencion\":string,\"requiere_aclaracion\":boolean}. "
-    "Usa null cuando no se indique. Si la información es insuficiente o ambigua, requiere_aclaracion debe ser true."
+    "Esquema: {\"intencion\":string,\"requiere_aclaracion\":boolean,\"alimentos\":[{\"nombre\":string,\"cantidad\":number|null,\"unidad\":string|null,\"preparacion\":string|null,\"confianza\":number,\"incertidumbres\":[string]}]}. "
+    "Intención en: registrar_comida, registrar_medicion, crear_objetivo, consultar_balance, desconocida. "
+    "Solo usa nombres de alimentos del catálogo conocido (huevo, arroz, pollo, tortilla, frijoles, aguacate, aceite, salsa, agua, refresco). "
+    "Si el alimento no está en el catálogo o la información es insuficiente, pon requiere_aclaracion=true y describe la incertidumbre en incertidumbres. "
+    "Usa null cuando no se indique. Nunca inventes cantidades ni preparaciones."
 )
 
 CASES = [

@@ -2,28 +2,28 @@
   {
     "model": "qwen2.5:7b-instruct-q4_K_M",
     "json_ok": 6,
-    "food": 4,
+    "food": 3,
     "qty": 6,
     "unit": 6,
     "prep": 6,
     "clarify": 5,
     "n": 6,
-    "latency": 12.316816329956055,
-    "tps": 206.71735055896318,
-    "vram": 4802
+    "latency": 16.840903282165527,
+    "tps": 211.2638049993578,
+    "vram": 4780
   },
   {
     "model": "llama3.1:8b-instruct-q4_K_M",
-    "json_ok": 5,
+    "json_ok": 6,
     "food": 4,
-    "qty": 5,
+    "qty": 6,
     "unit": 5,
-    "prep": 5,
-    "clarify": 4,
+    "prep": 6,
+    "clarify": 5,
     "n": 6,
-    "latency": 13.920110702514648,
-    "tps": 162.82093807057555,
-    "vram": 5296
+    "latency": 22.444922924041748,
+    "tps": 199.02701150854148,
+    "vram": 5275
   },
   {
     "model": "gemma2:9b-instruct-q4_K_M",
@@ -32,10 +32,10 @@
     "qty": 6,
     "unit": 6,
     "prep": 6,
-    "clarify": 4,
+    "clarify": 6,
     "n": 6,
-    "latency": 21.088547468185425,
-    "tps": 143.68497256130303,
-    "vram": 7186
+    "latency": 26.50341534614563,
+    "tps": 158.0586355973931,
+    "vram": 7196
   }
 ]

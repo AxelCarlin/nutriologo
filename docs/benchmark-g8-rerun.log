@@ -1,0 +1,62 @@
+== qwen2.5:7b-instruct-q4_K_M ==
+  Comí dos huevos y dos tortillas.           {'json_ok': True, 'food': False, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=2.9s vram=4774MiB
+  Comí unos tacos.                           {'json_ok': True, 'food': False, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=2.3s vram=4780MiB
+  Comí huevos con aceite.                    {'json_ok': True, 'food': True, 'qty': True, 'unit': True, 'prep': True, 'clarify': False} lat=3.3s vram=4780MiB
+  Comí 150 gramos de arroz con pollo hervi   {'json_ok': True, 'food': True, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=4.4s vram=4780MiB
+  Tomé un vaso de agua.                      {'json_ok': True, 'food': True, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=1.8s vram=4780MiB
+  Comí pizza.                                {'json_ok': True, 'food': False, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=2.2s vram=4780MiB
+== llama3.1:8b-instruct-q4_K_M ==
+  Comí dos huevos y dos tortillas.           {'json_ok': True, 'food': True, 'qty': True, 'unit': False, 'prep': True, 'clarify': True} lat=3.9s vram=5269MiB
+  Comí unos tacos.                           {'json_ok': True, 'food': False, 'qty': True, 'unit': True, 'prep': True, 'clarify': False} lat=6.2s vram=5275MiB
+  Comí huevos con aceite.                    {'json_ok': True, 'food': True, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=4.2s vram=5275MiB
+  Comí 150 gramos de arroz con pollo hervi   {'json_ok': True, 'food': True, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=4.2s vram=5275MiB
+  Tomé un vaso de agua.                      {'json_ok': True, 'food': True, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=1.9s vram=5275MiB
+  Comí pizza.                                {'json_ok': True, 'food': False, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=2.1s vram=5275MiB
+== gemma2:9b-instruct-q4_K_M ==
+  Comí dos huevos y dos tortillas.           {'json_ok': True, 'food': True, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=5.4s vram=7196MiB
+  Comí unos tacos.                           {'json_ok': True, 'food': False, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=2.9s vram=7196MiB
+  Comí huevos con aceite.                    {'json_ok': True, 'food': True, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=5.3s vram=7196MiB
+  Comí 150 gramos de arroz con pollo hervi   {'json_ok': True, 'food': True, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=6.0s vram=7196MiB
+  Tomé un vaso de agua.                      {'json_ok': True, 'food': True, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=3.9s vram=7196MiB
+  Comí pizza.                                {'json_ok': True, 'food': True, 'qty': True, 'unit': True, 'prep': True, 'clarify': True} lat=3.0s vram=7196MiB
+[
+  {
+    "model": "qwen2.5:7b-instruct-q4_K_M",
+    "json_ok": 6,
+    "food": 3,
+    "qty": 6,
+    "unit": 6,
+    "prep": 6,
+    "clarify": 5,
+    "n": 6,
+    "latency": 16.840903282165527,
+    "tps": 211.2638049993578,
+    "vram": 4780
+  },
+  {
+    "model": "llama3.1:8b-instruct-q4_K_M",
+    "json_ok": 6,
+    "food": 4,
+    "qty": 6,
+    "unit": 5,
+    "prep": 6,
+    "clarify": 5,
+    "n": 6,
+    "latency": 22.444922924041748,
+    "tps": 199.02701150854148,
+    "vram": 5275
+  },
+  {
+    "model": "gemma2:9b-instruct-q4_K_M",
+    "json_ok": 6,
+    "food": 5,
+    "qty": 6,
+    "unit": 6,
+    "prep": 6,
+    "clarify": 6,
+    "n": 6,
+    "latency": 26.50341534614563,
+    "tps": 158.0586355973931,
+    "vram": 7196
+  }
+]
