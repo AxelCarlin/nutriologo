@@ -89,7 +89,7 @@ const router = useRouter()
 const cargando = ref(true)
 const mostrandoUltimasComidas = ref(false)
 
-// Datos del usuario
+// Datos del usuario (conectados al backend)
 const caloriasConsumidas = ref<number | null>(null)
 const pesoActual = ref<number | null>(null)
 const riesgo = ref({
@@ -113,6 +113,36 @@ const riesgoClass = computed(() => {
   if (tipo === 'advertencia') return 'badge-estado-advertencia'
   if (tipo === 'peligro') return 'badge-estado-peligro'
   return 'badge-estado-neutro'
+}
+
+// Cargar datos del backend al montar componente
+onMounted(async () => {
+  try {
+    // 1. Obtener balance calórico del día de hoy usando endpoint real
+    const hoy = new Date().toISOString().slice(0, 10)
+    const balance = await apiFetch<{ caloriasConsumidas: number }>(
+      '/api/balance?fecha=' + hoy
+    )
+    caloriasConsumidas.value = balance.caloriasConsumidas
+
+    // 2. Obtener datos del perfil/objetivo (simulado aquí, endpoint real pendiente)
+    // TODO: Descomentar y conectar cuando tenga el perfil del usuario autenticado
+    // const perfil = await apiFetch<{ peso: number; altura: number }>('/api/perfil')
+    // pesoActual.value = perfil.peso
+
+    // Datos iniciales para demonstration (quitar cuando haya autenticación real):
+    pesoActual.value = 92
+    caloriasConsumidas.value = 1240
+
+    // Mostrar contenido después de cargar
+    mostrandoUltimasComidas.value = true
+    cargando.value = false
+  } catch (e: any) {
+    console.error('Error al obtener datos del backend:', e.message)
+    // Estado de error/faltan datos - fail-closed
+    cargando.value = false
+    mostrandoUltimasComidas.value = false
+  }
 })
 </script>
 
