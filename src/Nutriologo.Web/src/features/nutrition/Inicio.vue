@@ -81,7 +81,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { apiFetch } from '../../shared/api/client'
+import { apiFetch, isAuthenticated } from '../../shared/api/client'
 
 const router = useRouter()
 
@@ -89,7 +89,7 @@ const router = useRouter()
 const cargando = ref(true)
 const mostrandoUltimasComidas = ref(false)
 
-// Datos del usuario (conectados al backend)
+// Datos del usuario (conectados al backend via auth JWT)
 const caloriasConsumidas = ref<number | null>(null)
 const pesoActual = ref<number | null>(null)
 const riesgo = ref({
@@ -118,30 +118,64 @@ const riesgoClass = computed(() => {
 // Cargar datos del backend al montar componente
 onMounted(async () => {
   try {
-    // 1. Obtener balance calórico del día de hoy usando endpoint real
+    // 1. Verificar si el usuario está autenticado
+    const hayAuth = isAuthenticated()
+    
+    // 2. Obtener balance calórico del día de hoy usando endpoint real
     const hoy = new Date().toISOString().slice(0, 10)
-    const balance = await apiFetch<{ caloriasConsumidas: number }>(
-      '/api/balance?fecha=' + hoy
-    )
-    caloriasConsumidas.value = balance.caloriasConsumidas
-
-    // 2. Obtener datos del perfil/objetivo (simulado aquí, endpoint real pendiente)
-    // TODO: Descomentar y conectar cuando tenga el perfil del usuario autenticado
-    // const perfil = await apiFetch<{ peso: number; altura: number }>('/api/perfil')
-    // pesoActual.value = perfil.peso
-
-    // Datos iniciales para demonstration (quitar cuando haya autenticación real):
-    pesoActual.value = 92
-    caloriasConsumidas.value = 1240
-
-    // Mostrar contenido después de cargar
+    
+    if (hayAuth) {
+      // Usuario autenticado: usar endpoint con token JWT
+      const balance = await apiFetch<{ caloriasConsumidas: number }>(
+        '/api/balance?fecha=' + hoy,
+        { headers: { Authorization: `Bearer ${localStorage.getItem('nutriologo_token')}` } }
+      )
+      caloriasConsumidas.value = balance.caloriasConsumidas
+      
+      // 3. Obtener perfil del usuario autenticado
+      const perfil = await apiFetch<{ peso: number }>(
+        '/api/perfil',
+        { headers: { Authorization: `Bearer ${localStorage.getItem('nutriologo_token')}` } }
+      )
+      pesoActual.value = perfil.peso
+      
+      // 4. Obtener evaluación de riesgo del perfil/objetivo
+      try {
+        const objetivo = await apiFetch<{ evaluacionObjetivo: { idNivelRiesgo: number; texto: string } }>(
+          '/api/objetivo/calcular',
+          { headers: { Authorization: `Bearer ${localStorage.getItem('nutriologo_token')}` } }
+        )
+        // Mapear riesgo del backend al formato del frontend
+        if (objetivo.evaluacionObjetivo?.idNivelRiesgo === 1) {
+          riesgo.value = { tipo: 'exitoso', texto: objetivo.evaluacionObjetivo.texto }
+        } else if (objetivo.evaluacionObjetivo?.idNivelRiesgo === 2) {
+          riesgo.value = { tipo: 'advertencia', texto: objetivo.evaluacionObjetivo.texto }
+        } else if (objetivo.evaluacionObjetivo?.idNivelRiesgo === 3) {
+          riesgo.value = { tipo: 'peligro', texto: objetivo.evaluacionObjetivo.texto }
+        } else {
+          riesgo.value = { tipo: 'neutral', texto: 'Sin nivel definido' }
+        }
+      } catch (objError) {
+        // Si falla objetivo/calcular, mantener riesgo neutral
+        console.warn('No se pudo cargar evaluación de objetivo:', objError.message)
+        riesgo.value = { tipo: 'neutral', texto: 'Sin evaluación' }
+      }
+    } else {
+      // Usuario no autenticado: datos simulados para demo (fallo-closed)
+      caloriasConsumidas.value = 1240
+      pesoActual.value = 92
+      riesgo.value = { tipo: 'neutral', texto: 'Sin autenticar - define perfil' }
+    }
+    
+    // 5. Mostrar contenido después de cargar
     mostrandoUltimasComidas.value = true
     cargando.value = false
   } catch (e: any) {
-    console.error('Error al obtener datos del backend:', e.message)
+    console.error('Error al obtener datos del backend:', e.message || e)
     // Estado de error/faltan datos - fail-closed
     cargando.value = false
     mostrandoUltimasComidas.value = false
+    // El template ya muestra "Registra tu primera comida para ver tu progreso" gracias a v-else
   }
 })
 </script>

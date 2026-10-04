@@ -1,27 +1,65 @@
-import { logout, token } from './auth'
+import { localStorage } from '@/shared/utils/localStorage'
 
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api'
+// Base URL for API calls
+const BASE_URL = '/api'
 
-export interface ApiError {
-  status: number
-  message: string
+/**
+ * Fetches data from the API endpoint.
+ * @param endpoint - The API endpoint path (e.g., '/balance?fecha=2024-01-15')
+ * @param options - Optional fetch options including headers
+ * @returns Parsed JSON response
+ */
+export async function apiFetch<T>(endpoint: string, options?: {
+  headers?: Record<string, string>
+  method?: 'GET' | 'POST'
+  body?: any
+}): Promise<T> {
+  const url = `${BASE_URL}${endpoint}`
+  
+  const defaultHeaders: HeadersInit = {
+    'Content-Type': 'application/json',
+    ...options?.headers,
+  }
+
+  // Add JWT token if available
+  const token = localStorage.getItem('nutriologo_token')
+  if (token) {
+    defaultHeaders['Authorization'] = `Bearer ${token}`
+  }
+
+  const config: RequestInit = {
+    method: options?.method || 'GET',
+    headers: defaultHeaders,
+    ...(options?.body ? { body: JSON.stringify(options.body) } : {}),
+  }
+
+  const response = await fetch(url, config)
+
+  if (!response.ok) {
+    // Handle 401 - token expired or invalid
+    if (response.status === 401) {
+      // Clear invalid token
+      localStorage.removeItem('nutriologo_token')
+      localStorage.removeItem('nutriologo_nombre')
+      // Redirect to login
+      window.location.href = '/login'
+    }
+    const errorText = await response.text()
+    throw {
+      status: response.status,
+      message: errorText || 'Error en la petición API',
+    }
+  }
+
+  return response.json()
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...((init?.headers ?? {}) as Record<string, string>),
-  }
-  if (token.value) headers['Authorization'] = `Bearer ${token.value}`
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers })
-  if (res.status === 401 && !path.startsWith('/auth/')) {
-    logout()
-    if (location.pathname !== '/login') location.assign('/login')
-    throw { status: 401, message: 'Sesión expirada. Inicia sesión de nuevo.' } satisfies ApiError
-  }
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw { status: res.status, message: body || res.statusText } satisfies ApiError
-  }
-  return res.json() as Promise<T>
+// Helper function to check if user is authenticated
+export function isAuthenticated(): boolean {
+  return localStorage.getItem('nutriologo_token') !== null
+}
+
+// Helper function to get user name
+export function getUserName(): string | null {
+  return localStorage.getItem('nutriologo_nombre') || null
 }
