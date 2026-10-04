@@ -25,6 +25,13 @@
       <dt>Déficit diario</dt><dd>{{ resultado.deficitDiarioRequerido }}</dd>
       <dt>Ritmo semanal</dt><dd>{{ resultado.ritmoSemanalKg }} kg</dd>
     </dl>
+    <h3>Evaluación de riesgo</h3>
+    <dl v-if="resultado?.evaluacionObjetivo">
+      <dt>Objetivo</dt><dd>{{ resultado.evaluacionObjetivo.descripcion }} (nivel {{ resultado.evaluacionObjetivo.idNivelRiesgo }})</dd>
+    </dl>
+    <dl v-if="resultado?.evaluacionMetaCalorica">
+      <dt>Meta calórica</dt><dd>{{ resultado.evaluacionMetaCalorica.descripcion }} (nivel {{ resultado.evaluacionMetaCalorica.idNivelRiesgo }}) — déficit {{ resultado.evaluacionMetaCalorica.deficitCalculado }} kcal ({{ (resultado.evaluacionMetaCalorica.porcentajeDeficit*100).toFixed(1) }}%)</dd>
+    </dl>
   </section>
 </template>
 

@@ -38,13 +38,44 @@ public static class NutricionEndpoints
             return Results.Ok(items);
         });
 
-        g.MapPost("/objetivo/calcular", (ObjetivoRequest r, AppDbContext db) =>
+        g.MapPost("/objetivo/calcular", async (ObjetivoRequest r, AppDbContext db) =>
         {
             NutritionSafetyGuard.EnsureAllowed(r.TipoObjetivo, r.EdadAnios, r.Estado);
             ICalorieCalculator calc = new MifflinStJeorCalorieCalculator();
             var est = calc.Estimate(new CalorieInput(r.PesoKg, r.AlturaCm, r.EdadAnios, r.Sexo, r.FactorActividad,
                 r.TipoObjetivo, r.PesoObjetivoKg, r.SemanasObjetivo));
-            return Results.Ok(est);
+
+            // Reglas configurables vienen de DB (Infrastructure → Domain evaluators).
+            var reglasRitmo = await db.ReglaRiesgoObjetivos
+                .Select(x => new ReglaRiesgoObjetivoDef(x.Codigo, x.RitmoMinimo, x.RitmoMaximo, x.Orden, x.IdNivelRiesgo, x.Descripcion))
+                .ToListAsync();
+            var reglasMeta = await db.ReglaRiesgoMetasCaloricas
+                .Select(x => new ReglaRiesgoMetaCaloricaDef(x.Codigo, x.CaloriasMinimas, x.DeficitMaximo, x.Orden, x.IdNivelRiesgo, x.Descripcion))
+                .ToListAsync();
+
+            object? evaluacionObjetivo = null, evaluacionMeta = null;
+            if (est.RitmoSemanalKg is not null && reglasRitmo.Count > 0)
+            {
+                var e = RiesgoEvaluator.EvaluarRitmo(est.RitmoSemanalKg.Value, reglasRitmo);
+                evaluacionObjetivo = new { e.ReglaAplicada.Codigo, e.ReglaAplicada.Descripcion, e.ReglaAplicada.IdNivelRiesgo };
+            }
+            if (est.MetaCaloricaEstimada is not null && reglasMeta.Count > 0)
+            {
+                var e = RiesgoEvaluator.EvaluarMetaProporcionada(est.MetaCaloricaEstimada.Value, est.GastoEnergeticoTotal, reglasMeta);
+                evaluacionMeta = new { e.ReglaAplicada.Codigo, e.ReglaAplicada.Descripcion, e.ReglaAplicada.IdNivelRiesgo, e.DeficitCalculado, e.PorcentajeDeficit };
+            }
+
+            return Results.Ok(new
+            {
+                est.MetabolismoBasal,
+                est.GastoEnergeticoTotal,
+                est.DeficitDiarioRequerido,
+                est.MetaCaloricaEstimada,
+                est.RitmoSemanalKg,
+                est.PorcentajeCambio,
+                evaluacionObjetivo,
+                evaluacionMetaCalorica = evaluacionMeta,
+            });
         });
     }
 
