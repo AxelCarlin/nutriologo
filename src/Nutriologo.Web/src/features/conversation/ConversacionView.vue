@@ -3,7 +3,7 @@
     <header class="chat-header">
       <div class="chip-model">
         <span>Nutriólogo</span>
-        <span aria-hidden="true">⌄</span>
+        <span aria-hidden="true">⌃</span>
       </div>
       <div class="header-actions">
         <button class="btn-icon" type="button" title="Nueva conversación" aria-label="Nueva conversación" @click="nueva">
@@ -30,8 +30,11 @@
           </div>
         </template>
       </div>
-      <p v-if="enviando" class="msg-status thinking-dots">Analizando</p>
-      <p v-if="error" class="msg-status msg-status--error">{{ error }}</p>
+      <p v-if="isError" class="msg-status msg-status--error">{{ error }}</p>
+      <p v-if="isAwaitingClarification" class="msg-status msg-status--warning">
+        {{ needsClarificationMessage }}
+      </p>
+      <p v-if="isThinkingOrSpeaking" class="msg-status thinking-dots">Analizando</p>
       <p v-if="exito" class="msg-status msg-status--ok">{{ exito }}</p>
     </div>
 
@@ -58,17 +61,35 @@
 
 <script setup lang="ts">
 import { ArrowUp, Copy, MessageSquarePlus, Plus } from 'lucide-vue-next'
-import { nextTick, ref } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import { apiFetch } from '../../shared/api/client'
-import Orb, { type OrbState } from '../../shared/components/Orb.vue'
+import Orb from '../../shared/components/Orb.vue'
 
+// Tipos de estado
+type AgentState = 'idle' | 'listening' | 'thinking' | 'speaking'
+type ConversationState = 'empty' | 'active' | 'error' | 'awaiting-clarification'
+
+// Estado de la conversación usando ref de Vue
+const conversationState = ref<ConversationState>('empty')
+
+// AgentState para el Orb (estados técnicos)
+const orbState = ref<AgentState>('idle')
+
+// Helper computeds for template access
+const isError = computed(() => conversationState.value === 'error')
+const isAwaitingClarification = computed(() => conversationState.value === 'awaiting-clarification')
+const isThinkingOrSpeaking = computed(() => orbState.value === 'thinking' || orbState.value === 'speaking')
+
+// Mensajes del chat
 const mensajes = ref<{ id: number; rol: string; texto: string }[]>([])
 const texto = ref('')
 const enviando = ref(false)
 const error = ref('')
 const exito = ref('')
-const orbState = ref<OrbState>('idle')
 let nextId = 1
+
+// Mensaje de aclaración cuando el LLM necesita más info
+const needsClarificationMessage = 'Necesito más información sobre tu comida para darte una recomendación adecuada.'
 
 function copiar(t: string) {
   navigator.clipboard?.writeText(t).catch(() => {})
@@ -78,35 +99,81 @@ function nueva() {
   mensajes.value = []
   error.value = ''
   exito.value = ''
+  conversationState.value = 'empty'
+  orbState.value = 'idle'
 }
 
 async function enviar() {
   if (!texto.value.trim() || enviando.value) return
+
+  // 1. Mostrar mensaje de usuario
   mensajes.value.push({ id: nextId++, rol: 'user', texto: texto.value })
-  enviando.value = true
+
+  // 2. Actualizar estados
+  conversationState.value = 'active'
   orbState.value = 'thinking'
   error.value = ''
-  exito.value = ''
+
+  // 3. Preparar historial: últimos 6 mensajes formateados para el LLM
+  const historial = mensajes.value
+    .slice(-6)
+    .map((m: any) => ({ rol: m.rol, texto: m.texto }))
+
   try {
     const r = await apiFetch<any>('/conversacion/mensaje', {
       method: 'POST',
-      body: JSON.stringify({ texto: texto.value }),
+      body: JSON.stringify({ texto: texto.value, historial }),
     })
-    orbState.value = 'speaking'
+
+    // 3. Manejar respuesta del LLM
     if (r.tipo === 'registrado') {
       mensajes.value.push({ id: nextId++, rol: 'assistant', texto: 'Comida registrada correctamente.' })
       exito.value = `Comida #${r.id} registrada.`
+      conversationState.value = 'active'
+      orbState.value = 'speaking'
+    } else if (r.tipo === 'respuesta') {
+      mensajes.value.push({ id: nextId++, rol: 'assistant', texto: r.texto ?? '' })
+      conversationState.value = 'active'
+      orbState.value = 'speaking'
+    } else if (r.tipo === 'pregunta') {
+      // El LLM necesita más información
+      mensajes.value.push({ id: nextId++, rol: 'assistant', texto: r.pregunta ?? needsClarificationMessage })
+      conversationState.value = 'awaiting-clarification'
+      orbState.value = 'idle'
     } else {
-      mensajes.value.push({ id: nextId++, rol: 'assistant', texto: r.pregunta ?? 'Necesito más información.' })
+      // Respuesta desconocida
+      mensajes.value.push({ id: nextId++, rol: 'assistant', texto: 'Respuesta inesperada del asistente.' })
+      conversationState.value = 'error'
+      orbState.value = 'idle'
     }
   } catch (e: any) {
-    error.value = e?.message ?? 'Error'
+    // Error 503 del backend (modelo calentando/ocioso)
+    if (e?.status === 503) {
+      error.value = 'El modelo está ocupado. Espera unos segundos e intentalo de nuevo.'
+      conversationState.value = 'error'
+    } else {
+      error.value = e?.message ?? 'Error inesperado al comunicarse con el asistente'
+      conversationState.value = 'error'
+    }
   } finally {
     enviando.value = false
     texto.value = ''
     await nextTick()
     window.scrollTo({ top: document.body.scrollHeight })
-    setTimeout(() => { orbState.value = 'idle' }, 1200)
+    // Resetear a idle después de un breve retraso
+    setTimeout(() => {
+      if (conversationState.value !== 'awaiting-clarification') {
+        orbState.value = 'idle'
+      }
+      if (exito.value && !/Comida #/.test(exito.value)) {
+        // Auto-ocultar éxito después de un tiempo
+        setTimeout(() => { exito.value = '' }, 5000)
+      }
+    }, 1200)
   }
 }
 </script>
+
+<style>
+/* Chat screen styles would go here, inheriting Aurenix tokens */
+</style>
