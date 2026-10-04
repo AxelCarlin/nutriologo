@@ -55,6 +55,6 @@ docker compose up -d --build
 ```
 
 Servicios: postgres+pgvector (5432), ollama (11434), api (8080), web (3000).
-Exposición pública: pendiente vía dominio + cloudflared (sin Caddy en el stack).
+Exposición pública: dominio `nexsmart.com.mx` vía Cloudflare Tunnel (ver `docs/cloudflared.md`).
 Backups: `scripts/backup.sh`, restauración: `scripts/restore.sh`.
 ```

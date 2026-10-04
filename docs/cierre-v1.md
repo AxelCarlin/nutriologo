@@ -34,4 +34,4 @@ Ningún secreto versionado: `.env` y `appsettings.Development.json` en `.gitigno
 
 ## Estado de producción
 
-MVP implementado, evaluado, desplegable y reproducible. Operación pendiente: dominio + cloudflared, `POSTGRES_PASSWORD`/`Ollama__*` por entorno, backups programados (`scripts/backup.sh`).
+MVP implementado, evaluado, desplegable y reproducible. Exposición públicaactiva: `https://nexsmart.com.mx` vía Cloudflare Tunnel (ver`docs/cloudflared.md`). Operación restante: `POSTGRES_PASSWORD`/`Ollama__*`por entorno, backups programados (`scripts/backup.sh`).
