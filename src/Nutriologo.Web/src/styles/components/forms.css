@@ -1,0 +1,52 @@
+/* ========== FORMS (vistas de captura: perfil, mediciones, registro) ========== */
+
+.form-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  padding-top: var(--space-xl);
+}
+
+.form-screen h2 {
+  font-size: 24px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field label {
+  font: 500 11px var(--font);
+  color: var(--text-2);
+}
+
+.field input,
+.field select {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--surface-input);
+  border: 1px solid var(--border-default);
+  color: var(--text-1);
+  font: 400 13px var(--font);
+  outline: none;
+  width: 100%;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(31, 107, 255, 0.14);
+}
+
+.form-error {
+  font: 400 12px var(--font);
+  color: var(--state-danger);
+}
+
+.form-ok {
+  font: 400 12px var(--font);
+  color: var(--state-success);
+}

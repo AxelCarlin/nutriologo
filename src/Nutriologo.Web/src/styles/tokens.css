@@ -1,0 +1,53 @@
+/* ========== AURENIX TOKENS (Nutriólogo) ==========
+   Fuente: Downloads/aurenix-gui-spec.md §2-3.
+   Solo variables. Sin selectores de componente aquí. */
+
+:root {
+  --bg-base: #050b1a;
+  --bg-elevated: #0a1226;
+  --bg-chat: #070c18;
+
+  --surface-glass: rgba(255, 255, 255, 0.05);
+  --surface-glass-strong: rgba(255, 255, 255, 0.08);
+  --surface-card: rgba(14, 24, 48, 0.72);
+  --surface-bubble-user: rgba(255, 255, 255, 0.1);
+  --surface-input: rgba(10, 18, 38, 0.85);
+  --surface-tile: rgba(20, 32, 64, 0.7);
+
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-focus: rgba(54, 128, 255, 0.7);
+
+  --accent: #1f6bff;
+  --accent-hi: #3d86ff;
+  --accent-lo: #0a4fd6;
+  --accent-glow: rgba(31, 107, 255, 0.45);
+  --accent-gradient: linear-gradient(180deg, #2f7bff 0%, #1556e0 100%);
+
+  --text-1: #ffffff;
+  --text-2: rgba(255, 255, 255, 0.72);
+  --text-3: rgba(255, 255, 255, 0.48);
+  --text-4: rgba(255, 255, 255, 0.28);
+
+  --state-success: #34d399;
+  --state-warning: #f5b544;
+  --state-danger: #f2555a;
+
+  --radius-card: 18px;
+  --radius-bubble: 16px;
+  --radius-input: 18px;
+  --radius-tile: 14px;
+  --radius-pill: 999px;
+
+  --blur-glass: 20px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --font: 'Inter', 'SF Pro Display', 'SF Pro Text', -apple-system, 'Segoe UI',
+    Roboto, sans-serif;
+
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+}

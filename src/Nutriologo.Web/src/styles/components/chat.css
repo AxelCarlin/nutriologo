@@ -1,0 +1,110 @@
+/* ========== CHAT (pantalla, header, mensajes) ========== */
+
+.chat-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  background: linear-gradient(180deg, #0a0f1e 0%, #060a14 100%);
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: var(--space-lg) var(--space-xl) 0;
+}
+
+.chip-model {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: var(--surface-glass);
+  border: 1px solid var(--border-default);
+  font: 600 13px var(--font);
+}
+
+.chat-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  scrollbar-width: none;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.msg-user {
+  align-self: flex-end;
+  max-width: 78%;
+  padding: 8px 14px;
+  border-radius: 16px;
+  background: var(--surface-bubble-user);
+  border: 1px solid var(--border-subtle);
+  font: 400 12px/1.4 var(--font);
+}
+
+.msg-agent {
+  align-self: flex-start;
+  max-width: 92%;
+  font: 400 12px/1.5 var(--font);
+  color: var(--text-1);
+}
+
+.msg-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  color: var(--text-3);
+}
+
+.msg-actions button {
+  background: none;
+  border: 0;
+  color: inherit;
+  font: 400 11px var(--font);
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.msg-actions button:hover {
+  color: var(--text-1);
+}
+
+.msg-status {
+  font: 400 11px var(--font);
+  color: var(--text-3);
+  align-self: flex-start;
+}
+
+.msg-status--error {
+  color: var(--state-danger);
+}
+
+.msg-status--ok {
+  color: var(--state-success);
+}
+
+.thinking-dots::after {
+  content: '⋯';
+  animation: thinking-blink 1.2s steps(3) infinite;
+}
+
+@keyframes thinking-blink {
+  0%,
+  100% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+}
