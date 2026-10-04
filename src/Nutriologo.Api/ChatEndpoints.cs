@@ -45,6 +45,7 @@ public static class ChatEndpoints
                 return Results.Ok(new { tipo = "aclaracion", registrado.RequiereAclaracion, registrado.Mensaje });
 
             return Results.Ok(new { tipo = "registrado", id = registrado.Id, mensaje = registrado.Mensaje });
-        });
+        }).RequireRateLimiting("business");
     }
 }
+

@@ -9,9 +9,24 @@ builder.Services.AddOpenApi();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddOllama(builder.Configuration);
 
+// J5: rate limiting básico en endpoints de negocio/IA
+builder.Services.AddRateLimiter(options =>
+{
+        options.AddPolicy("business", _ =>
+            System.Threading.RateLimiting.RateLimitPartition.GetFixedWindowLimiter("business", _ =>
+                new System.Threading.RateLimiting.FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 100,
+                    Window = TimeSpan.FromMinutes(1),
+                    QueueLimit = 0,
+                }));
+    options.RejectionStatusCode = 429;
+});
+
 var app = builder.Build();
 
 app.UseMiddleware<GlobalExceptionMiddleware>();
+app.UseRateLimiter();
 
 if (app.Environment.IsDevelopment())
 {

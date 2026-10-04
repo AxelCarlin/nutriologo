@@ -13,7 +13,7 @@ public static class NutricionEndpoints
 {
     public static void MapNutricion(this WebApplication app)
     {
-        var g = app.MapGroup("/api");
+        var g = app.MapGroup("/api").RequireRateLimiting("business");
 
         g.MapPost("/perfil", async (PerfilRequest r, AppDbContext db) =>
         {
