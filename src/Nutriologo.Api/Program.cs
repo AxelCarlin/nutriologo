@@ -21,5 +21,6 @@ if (app.Environment.IsDevelopment())
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 
 app.MapNutricion();
+app.MapChat();
 
 app.Run();
