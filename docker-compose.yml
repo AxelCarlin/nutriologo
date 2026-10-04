@@ -4,18 +4,89 @@ services:
     container_name: nutriologo-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: Buss1ness.2026
-      POSTGRES_DB: nutriologo
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-nutriologo}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d nutriologo"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-nutriologo}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: nutriologo-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - /usr/share/ollama/.ollama:/root/.ollama
+    # Para GPU en K, instala nvidia-container-toolkit y descomenta:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/version || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Nutriologo.Api/Dockerfile
+    container_name: nutriologo-api
+    restart: unless-stopped
+    environment:
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${POSTGRES_DB:-nutriologo};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}
+      Ollama__BaseUrl: http://ollama:11434
+      Ollama__Model: ${Ollama_Model:-qwen2.5:7b-instruct-q4_K_M}
+      Ollama__VisionModel: ${Ollama_VisionModel:-qwen2.5vl:7b-q4_K_M}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/web.Dockerfile
+    container_name: nutriologo-web
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: nutriologo-caddy
+    restart: unless-stopped
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+      - web
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

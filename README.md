@@ -46,3 +46,14 @@ Conexión: `Host=localhost;Port=5432;Database=nutriologo;Username=postgres;Passw
 dotnet build
 dotnet test
 ```
+
+## Despliegue
+
+```bash
+echo 'POSTGRES_PASSWORD=<tu_password>' > .env
+docker compose up -d --build
+```
+
+Servicios: postgres+pgvector (5432), ollama (11434), api (8080), web (3000), caddy (80).
+Backups: `scripts/backup.sh`, restauración: `scripts/restore.sh`.
+```
