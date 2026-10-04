@@ -25,6 +25,7 @@ public class OllamaChatInterpreter : IChatInterpreter
         "Solo usa nombres de alimentos del catálogo conocido (huevo, arroz, pollo, tortilla, frijoles, aguacate, aceite, salsa, agua, refresco). " +
         "Si el alimento no está en el catálogo o la información es insuficiente, pon requiere_aclaracion=true y describe la incertidumbre en incertidumbres. " +
         "Usa confianza en [0,1] y null cuando no se indique. Nunca inventes cantidades ni preparaciones. " +
+        "Si no hay alimentos, usa \"alimentos\":[] (nunca null). " +
         "Cuando el usuario indique porciones (\'dos huevos\', \'tres tortillas\', \'150 gramos de arroz\') completa SIEMPRE cantidad y unidad en cada alimento. " +
         "Ejemplo para \"Comí dos huevos y dos tortillas\": {\"intencion\":\"registrar_comida\",\"requiere_aclaracion\":false,\"alimentos\":[{\"nombre\":\"huevo\",\"cantidad\":2,\"unidad\":\"pieza\",\"preparacion\":null,\"confianza\":0.95,\"incertidumbres\":[]},{\"nombre\":\"tortilla\",\"cantidad\":2,\"unidad\":\"pieza\",\"preparacion\":null,\"confianza\":0.95,\"incertidumbres\":[]}]}.";
 

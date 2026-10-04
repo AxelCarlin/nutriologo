@@ -20,7 +20,8 @@ public static class StructuredOutputValidator
             if (!root.TryGetProperty("requiere_aclaracion", out var aclarEl) ||
                 (aclarEl.ValueKind != JsonValueKind.True && aclarEl.ValueKind != JsonValueKind.False))
             { error = "requiere_aclaracion ausente o no booleano"; return false; }
-            if (!root.TryGetProperty("alimentos", out var alimEl) || alimEl.ValueKind != JsonValueKind.Array)
+            if (!root.TryGetProperty("alimentos", out var alimEl) ||
+                (alimEl.ValueKind != JsonValueKind.Array && alimEl.ValueKind != JsonValueKind.Null))
             { error = "alimentos ausente o no array"; return false; }
 
             var intent = intencionEl.GetString() switch
@@ -33,6 +34,7 @@ public static class StructuredOutputValidator
             };
 
             var candidatos = new List<FoodCandidate>();
+            if (alimEl.ValueKind == JsonValueKind.Array)
             foreach (var a in alimEl.EnumerateArray())
             {
                 if (!a.TryGetProperty("nombre", out var nEl) || nEl.ValueKind != JsonValueKind.String ||

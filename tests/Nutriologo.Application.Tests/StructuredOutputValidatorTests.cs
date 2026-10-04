@@ -44,6 +44,15 @@ public class StructuredOutputValidatorTests
     }
 
     [Fact]
+    public void AlimentosNull_SeNormalizaAVacio()
+    {
+        var raw = """{"intencion":"desconocida","requiere_aclaracion":true,"alimentos":null}""";
+        Assert.True(StructuredOutputValidator.TryParse(raw, out var r, out _));
+        Assert.NotNull(r);
+        Assert.Empty(r!.Candidatos);
+    }
+
+    [Fact]
     public void ConfianzaFueraDeRango_Falla() =>
         Assert.False(StructuredOutputValidator.TryParse(
             """{"intencion":"registrar_comida","requiere_aclaracion":false,"alimentos":[{"nombre":"a","confianza":1.5}]}""",

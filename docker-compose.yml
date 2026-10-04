@@ -34,7 +34,8 @@ services:
     #           count: all
     #           capabilities: [gpu]
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/version || exit 1"]
+      # Sin curl en la imagen: chequeo TCP con bash.
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/localhost/11434'"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -58,7 +59,8 @@ services:
       ollama:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      # Sin curl en la imagen: chequeo TCP con bash.
+      test: ["CMD-SHELL", "bash -c 'cat < /dev/null > /dev/tcp/localhost/8080'"]
       interval: 10s
       timeout: 5s
       retries: 5

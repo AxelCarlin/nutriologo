@@ -30,3 +30,6 @@ El frontend usa `VITE_API_URL ?? '/api'` (mismo origen), por lo que el buildactu
 - El túnel corre en el host de despliegue; si el host cambia, reinstalar`cloudflared` y reutilizar `cert.pem` + credenciales del túnel.
 - Rate limiting `business` (100 req/min) aplica también al tráfico público.
 - Backups y observabilidad según `docs/fase-k.md`.
+- **502 con página de Cloudflare** = origen inalcanzable (contenedor reiniciándoseo túnel caído), no error del modelo. Ver `journalctl -u cloudflared` y`docker ps`. Ocurrido el 2026-10-04 durante un rebuild de `web`.
+- **502 JSON del Api** (`IA no disponible o salida inválida`) = el modelo devolvióforma inesperada; el validador la normaliza cuando es seguro (`alimentos:null`→ `[]`) y lo demás sigue fail-closed.
+- Healthchecks de `api`/`ollama` son chequeos TCP con `bash` (las imágenes notraen `curl`).
