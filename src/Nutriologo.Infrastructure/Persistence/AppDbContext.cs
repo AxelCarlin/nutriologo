@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Nutriologo.Domain.Catalog;
 using Nutriologo.Domain.Consumption;
 using Nutriologo.Domain.Entities;
+using Nutriologo.Domain.Import;
 using Nutriologo.Domain.Feedback;
 using Nutriologo.Domain.Plans;
 using Nutriologo.Domain.Recipes;
@@ -44,6 +45,9 @@ public class AppDbContext : DbContext
     public DbSet<EvaluacionAnalisisIA> EvaluacionesAnalisisIA => Set<EvaluacionAnalisisIA>();
     public DbSet<CorreccionPrediccion> CorreccionesPrediccion => Set<CorreccionPrediccion>();
     public DbSet<EvaluacionMensaje> EvaluacionesMensaje => Set<EvaluacionMensaje>();
+    public DbSet<TipoEntradaPlan> TiposEntradaPlan => Set<TipoEntradaPlan>();
+    public DbSet<ImportacionPlan> ImportacionesPlan => Set<ImportacionPlan>();
+    public DbSet<ImportacionPlanImagen> ImportacionesPlanImagen => Set<ImportacionPlanImagen>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -52,6 +56,7 @@ public class AppDbContext : DbContext
         RecipesMapping.ApplyRecipes(modelBuilder);
         PlansConsumptionMapping.Apply(modelBuilder);
         FeedbackMapping.Apply(modelBuilder);
+        ImportMapping.Apply(modelBuilder);
         base.OnModelCreating(modelBuilder);
         // Schema usa timestamp (sin zona): normaliza DateTime UTC a Kind=Unspecified.
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())
