@@ -45,3 +45,14 @@
   font: 400 10.5px var(--font);
   color: var(--text-3);
 }
+
+.composer-tools {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-3);
+}
+
+.composer-tools a {
+  color: inherit;
+  display: inline-flex;
+}

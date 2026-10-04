@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Nutriologo.Api.Auth;
 using Nutriologo.Application.Abstractions.AI;
 using Nutriologo.Application.Meals;
 using Nutriologo.Domain.Catalog;
@@ -7,17 +9,18 @@ namespace Nutriologo.Api;
 
 public static class ChatEndpoints
 {
-    public record MensajeRequest(int IdUsuario, string Texto);
+    public record MensajeRequest(string Texto);
 
     public static void MapChat(this WebApplication app)
     {
-        app.MapPost("/api/conversacion/mensaje", async (MensajeRequest r, IChatInterpreter interpreter,
+        app.MapPost("/api/conversacion/mensaje", async (MensajeRequest r, ClaimsPrincipal user, IChatInterpreter interpreter,
             AppDbContext db, IFoodCatalogSource catalog) =>
         {
+            var idUsuario = JwtIssuer.UserId(user);
             AiResult<ChatInterpretation> resultado;
             try
             {
-                resultado = await interpreter.InterpretAsync(new ChatRequest(r.Texto, r.IdUsuario));
+                resultado = await interpreter.InterpretAsync(new ChatRequest(r.Texto, idUsuario));
             }
             catch (Exception ex)
             {
@@ -40,12 +43,12 @@ public static class ChatEndpoints
             if (items.Count == 0)
                 return Results.Ok(new { tipo = "aclaracion", pregunta = "¿Qué comiste? Indicá alimento y cantidad.", motivo = "sin cantidades estructuradas" });
 
-            var registrado = await MealRegistrar.RegisterAsync(db, catalog, r.IdUsuario, DateTime.UtcNow, null, items);
+            var registrado = await MealRegistrar.RegisterAsync(db, catalog, idUsuario, DateTime.UtcNow, null, items);
             if (!registrado.Ok)
                 return Results.Ok(new { tipo = "aclaracion", registrado.RequiereAclaracion, registrado.Mensaje });
 
             return Results.Ok(new { tipo = "registrado", id = registrado.Id, mensaje = registrado.Mensaje });
-        }).RequireRateLimiting("business");
+        }).RequireRateLimiting("business").RequireAuthorization();
     }
 }
 

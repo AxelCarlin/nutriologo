@@ -1,4 +1,6 @@
+using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Nutriologo.Api.Auth;
 using Nutriologo.Application.Meals;
 using Nutriologo.Domain.Catalog;
 using Nutriologo.Domain.Consumption;
@@ -13,20 +15,22 @@ public static class NutricionEndpoints
 {
     public static void MapNutricion(this WebApplication app)
     {
-        var g = app.MapGroup("/api").RequireRateLimiting("business");
+        var g = app.MapGroup("/api").RequireRateLimiting("business").RequireAuthorization();
 
-        g.MapPost("/perfil", async (PerfilRequest r, AppDbContext db) =>
+        g.MapPost("/perfil", async (PerfilRequest r, ClaimsPrincipal user, AppDbContext db) =>
         {
-            var p = new PerfilUsuario(r.IdUsuario, r.IdSexoBiologico, r.IdNivelActividadFisica,
-                r.FechaNacimiento, r.Altura, r.AlturaUnidad ?? "cm", DateTime.UtcNow, r.IdUsuario);
+            var idUsuario = JwtIssuer.UserId(user);
+            var p = new PerfilUsuario(idUsuario, r.IdSexoBiologico, r.IdNivelActividadFisica,
+                r.FechaNacimiento, r.Altura, r.AlturaUnidad ?? "cm", DateTime.UtcNow, idUsuario);
             db.PerfilesUsuario.Add(p);
             await db.SaveChangesAsync();
             return Results.Created($"/api/perfil/{p.Id}", new { p.Id });
         });
 
-        g.MapPost("/mediciones", async (MedicionRequest r, AppDbContext db) =>
+        g.MapPost("/mediciones", async (MedicionRequest r, ClaimsPrincipal user, AppDbContext db) =>
         {
-            var m = new MedicionCorporal(r.IdUsuario, r.IdTipoMedicionCorporal, r.Valor, r.FechaMedicion, r.Observacion, r.IdUsuario);
+            var idUsuario = JwtIssuer.UserId(user);
+            var m = new MedicionCorporal(idUsuario, r.IdTipoMedicionCorporal, r.Valor, r.FechaMedicion, r.Observacion, idUsuario);
             db.MedicionesCorporales.Add(m);
             await db.SaveChangesAsync();
             return Results.Created($"/api/mediciones/{m.Id}", new { m.Id });
@@ -35,15 +39,16 @@ public static class NutricionEndpoints
         g.MapGet("/alimentos", async (AppDbContext db) =>
             await db.Alimentos.OrderBy(a => a.Nombre).Select(a => new { a.Id, a.Nombre }).ToListAsync());
 
-        g.MapPost("/comidas", async (ComidaRequest r, AppDbContext db, IFoodCatalogSource catalog) =>
+        g.MapPost("/comidas", async (ComidaRequest r, ClaimsPrincipal user, AppDbContext db, IFoodCatalogSource catalog) =>
         {
-            var result = await MealRegistrar.RegisterAsync(db, catalog, r.IdUsuario, r.FechaConsumo, r.Nombre, r.Items);
+            var result = await MealRegistrar.RegisterAsync(db, catalog, JwtIssuer.UserId(user), r.FechaConsumo, r.Nombre, r.Items);
             return result.Ok ? Results.Created($"/api/comidas/{result.Id}", new { id = result.Id })
                 : Results.BadRequest(new { result.RequiereAclaracion, result.Mensaje });
         });
 
-        g.MapGet("/comidas", async (int idUsuario, DateTime? fecha, AppDbContext db) =>
+        g.MapGet("/comidas", async (DateTime? fecha, ClaimsPrincipal user, AppDbContext db) =>
         {
+            var idUsuario = JwtIssuer.UserId(user);
             var q = db.RegistrosComida.Where(x => x.IdUsuario == idUsuario);
             if (fecha is not null) q = q.Where(x => x.FechaConsumo.Date == fecha.Value.Date);
             var items = await q.OrderByDescending(x => x.FechaConsumo)
@@ -52,16 +57,18 @@ public static class NutricionEndpoints
             return Results.Ok(items);
         });
 
-        g.MapGet("/balance", async (int idUsuario, DateTime fecha, AppDbContext db) =>
+        g.MapGet("/balance", async (DateTime fecha, ClaimsPrincipal user, AppDbContext db) =>
         {
+            var idUsuario = JwtIssuer.UserId(user);
             var consumidas = await db.RegistrosComida
                 .Where(x => x.IdUsuario == idUsuario && x.FechaConsumo.Date == fecha.Date)
                 .SumAsync(x => (decimal?)x.CaloriasEstimadas) ?? 0m;
             return Results.Ok(new { fecha = fecha.Date, caloriasConsumidas = consumidas });
         });
 
-        g.MapGet("/mediciones", async (int idUsuario, AppDbContext db) =>
+        g.MapGet("/mediciones", async (ClaimsPrincipal user, AppDbContext db) =>
         {
+            var idUsuario = JwtIssuer.UserId(user);
             var items = await db.MedicionesCorporales.Where(x => x.IdUsuario == idUsuario)
                 .OrderByDescending(x => x.FechaMedicion)
                 .Select(x => new { x.Id, x.IdTipoMedicionCorporal, x.Valor, x.FechaMedicion, x.Observacion })
@@ -110,8 +117,8 @@ public static class NutricionEndpoints
         });
     }
 
-    public record ComidaRequest(int IdUsuario, DateTime FechaConsumo, string? Nombre, IReadOnlyList<MealItemInput> Items);
-    public record PerfilRequest(int IdUsuario, int IdSexoBiologico, int IdNivelActividadFisica, DateTime FechaNacimiento, decimal Altura, string? AlturaUnidad);
-    public record MedicionRequest(int IdUsuario, int IdTipoMedicionCorporal, decimal Valor, DateTime FechaMedicion, string? Observacion);
+    public record ComidaRequest(DateTime FechaConsumo, string? Nombre, IReadOnlyList<MealItemInput> Items);
+    public record PerfilRequest(int IdSexoBiologico, int IdNivelActividadFisica, DateTime FechaNacimiento, decimal Altura, string? AlturaUnidad);
+    public record MedicionRequest(int IdTipoMedicionCorporal, decimal Valor, DateTime FechaMedicion, string? Observacion);
     public record ObjetivoRequest(decimal PesoKg, decimal AlturaCm, int EdadAnios, SexoBiologico Sexo, decimal FactorActividad, TipoObjetivo TipoObjetivo, decimal? PesoObjetivoKg, decimal? SemanasObjetivo, EstadoFisiologicoCodigo Estado = EstadoFisiologicoCodigo.Ninguno);
 }

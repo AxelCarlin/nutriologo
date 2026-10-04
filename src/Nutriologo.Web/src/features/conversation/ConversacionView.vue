@@ -5,6 +5,11 @@
         <span>Nutriólogo</span>
         <span aria-hidden="true">⌄</span>
       </div>
+      <div class="header-actions">
+        <button class="btn-icon" type="button" title="Nueva conversación" aria-label="Nueva conversación" @click="nueva">
+          <MessageSquarePlus :size="20" :stroke-width="1.5" />
+        </button>
+      </div>
     </header>
 
     <Orb :state="orbState" />
@@ -19,7 +24,9 @@
         <template v-else>
           {{ m.texto }}
           <div class="msg-actions">
-            <button type="button" @click="copiar(m.texto)">Copiar</button>
+            <button type="button" @click="copiar(m.texto)">
+              <Copy :size="14" :stroke-width="1.5" /> Copiar
+            </button>
           </div>
         </template>
       </div>
@@ -36,16 +43,21 @@
           placeholder="Ej: Comí dos huevos y dos tortillas"
           aria-label="Mensaje al asistente"
         />
-        <span class="composer-hint">El asistente registra o pide aclaración; nunca inventa datos.</span>
+        <div class="composer-tools">
+          <RouterLink to="/registrar" title="Registro manual" aria-label="Registro manual">
+            <Plus :size="16" :stroke-width="1.5" />
+          </RouterLink>
+        </div>
       </div>
       <button class="send-btn" type="submit" :disabled="enviando || !texto.trim()" aria-label="Enviar">
-        ↑
+        <ArrowUp :size="20" :stroke-width="2" />
       </button>
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ArrowUp, Copy, MessageSquarePlus, Plus } from 'lucide-vue-next'
 import { nextTick, ref } from 'vue'
 import { apiFetch } from '../../shared/api/client'
 import Orb, { type OrbState } from '../../shared/components/Orb.vue'
@@ -62,6 +74,12 @@ function copiar(t: string) {
   navigator.clipboard?.writeText(t).catch(() => {})
 }
 
+function nueva() {
+  mensajes.value = []
+  error.value = ''
+  exito.value = ''
+}
+
 async function enviar() {
   if (!texto.value.trim() || enviando.value) return
   mensajes.value.push({ id: nextId++, rol: 'user', texto: texto.value })
@@ -72,7 +90,7 @@ async function enviar() {
   try {
     const r = await apiFetch<any>('/conversacion/mensaje', {
       method: 'POST',
-      body: JSON.stringify({ idUsuario: 1, texto: texto.value }),
+      body: JSON.stringify({ texto: texto.value }),
     })
     orbState.value = 'speaking'
     if (r.tipo === 'registrado') {

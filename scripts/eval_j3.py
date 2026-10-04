@@ -12,9 +12,10 @@ import json, subprocess, sys, time, urllib.request
 API = 'http://127.0.0.1:5080'
 DATASET = 'scripts/eval_j3_dataset.json'
 
-def post(path, body):
-    req = urllib.request.Request(API + path, data=json.dumps(body).encode(),
-                                 headers={'Content-Type': 'application/json'})
+def post(path, body, token=None):
+    headers = {'Content-Type': 'application/json'}
+    if token: headers['Authorization'] = f'Bearer {token}'
+    req = urllib.request.Request(API + path, data=json.dumps(body).encode(), headers=headers)
     t0 = time.time()
     try:
         with urllib.request.urlopen(req, timeout=180) as r:
@@ -47,12 +48,20 @@ def max_registro_id():
 
 def main():
     max_before = max_registro_id()
+    # Auth: usuario efímero para el eval (requiere Api con Auth__Key).
+    import uuid as _uuid
+    correo = f"eval_{_uuid.uuid4().hex[:8]}@test.local"
+    reg, _ = post('/api/auth/registro', {'nombre': 'Eval', 'correo': correo, 'password': 'Segura1234'})
+    token = reg.get('token')
+    if not token:
+        print('ERROR: no se obtuvo token de /api/auth/registro:', reg)
+        sys.exit(2)
     cases = json.load(open(DATASET))
     counts = {}
     latencies = []
     rows = []
     for c in cases:
-        out, lat = post('/api/conversacion/mensaje', {'idUsuario': 1, 'texto': c['input']})
+        out, lat = post('/api/conversacion/mensaje', {'texto': c['input']}, token)
         tipo = out.get('tipo', 'error') if isinstance(out, dict) and 'tipo' in out else 'error'
         resultado = classify(c['expected'], tipo)
         counts[resultado] = counts.get(resultado, 0) + 1

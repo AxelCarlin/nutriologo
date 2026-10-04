@@ -19,9 +19,9 @@ import { onMounted, ref } from 'vue'
 import { apiFetch } from '../../shared/api/client'
 
 const items = ref<any[]>([]); const loading = ref(false); const error = ref('')
-const form = ref({ idUsuario: 1, idTipoMedicionCorporal: 1, valor: 92, fechaMedicion: new Date().toISOString().slice(0,10), observacion: '' })
+const form = ref({ idTipoMedicionCorporal: 1, valor: 92, fechaMedicion: new Date().toISOString().slice(0,10), observacion: '' })
 
-async function cargar() { try { items.value = await apiFetch('/mediciones?idUsuario=1') } catch (e: any) { error.value = e?.message ?? 'Error' } }
+async function cargar() { try { items.value = await apiFetch('/mediciones') } catch (e: any) { error.value = e?.message ?? 'Error' } }
 async function agregar() {
   loading.value = true
   try { await apiFetch('/mediciones', { method: 'POST', body: JSON.stringify(form.value) }); await cargar() }

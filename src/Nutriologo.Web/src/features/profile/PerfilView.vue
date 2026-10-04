@@ -18,7 +18,7 @@
 import { ref } from 'vue'
 import { apiFetch } from '../../shared/api/client'
 
-const form = ref({ idUsuario: 1, idSexoBiologico: 1, idNivelActividadFisica: 3, fechaNacimiento: '1991-05-10', altura: 175 })
+const form = ref({ idSexoBiologico: 1, idNivelActividadFisica: 3, fechaNacimiento: '1991-05-10', altura: 175 })
 const loading = ref(false); const error = ref(''); const ok = ref<number | null>(null)
 
 async function guardar() {

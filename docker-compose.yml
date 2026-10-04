@@ -51,6 +51,8 @@ services:
       Ollama__BaseUrl: http://ollama:11434
       Ollama__Model: ${Ollama_Model:-qwen2.5:7b-instruct-q4_K_M}
       Ollama__VisionModel: ${Ollama_VisionModel:-qwen2.5vl:7b-q4_K_M}
+      Auth__Key: ${AUTH_KEY}
+      Auth__Issuer: nutriologo
     ports:
       - "8080:8080"
     depends_on:

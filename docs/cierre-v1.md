@@ -24,8 +24,8 @@ Ningún secreto versionado: `.env` y `appsettings.Development.json` en `.gitigno
 
 ## Deuda técnica explícita (v1.1+, no bloquea MVP)
 
-1. Autenticación real (hoy `idUsuario` en body).
-2. Tests BOLA/IDOR con dos usuarios autenticados.
+1. ~~Autenticación real~~ ✅ Resuelto post-v1.0: JWT HMAC-SHA256 (`/api/auth/registro`, `/api/auth/login`, PBKDF2 210k), `idUsuario` derivado del token en todos los endpoints, guard de rutas + login en el frontend.
+2. ~~Tests BOLA/IDOR~~ ✅ `Aislamiento_BOLA_UsuarioB_NoVeDatosDeA` + `SinToken_401` (10/10 integración).
 3. Validación estricta de uploads (sin endpoint aún).
 4. Rate limiting particionado por IP/usuario (hoy global fijo).
 5. `PIEZA → gramos` usa supuesto base-G (documentado).
