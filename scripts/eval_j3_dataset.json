@@ -1,0 +1,14 @@
+[
+  {"input": "Comí dos huevos y dos tortillas.", "expected": "registrado", "note": "feliz: dos alimentos, cantidades explícitas"},
+  {"input": "Comí 150 gramos de arroz con pollo hervido.", "expected": "registrado", "note": "cantidad explícita + preparación"},
+  {"input": "Tomé un vaso de agua.", "expected": "registrado", "note": "bebida simple"},
+  {"input": "Comí pizza.", "expected": "aclaracion", "note": "alimento inexistente en catálogo"},
+  {"input": "Comí unos tacos.", "expected": "aclaracion", "note": "ambigüedad sin cantidades"},
+  {"input": "Comí huevos asados con salsa.", "expected": "registrado_o_aclaracion", "note": "preparación presente; ambiguo re aceite?"},
+  {"input": "Comí frijoles.", "expected": "aclaracion", "note": "sin cantidad"},
+  {"input": "Comí dos refrescos.", "expected": "registrado", "note": "plural + cantidad"},
+  {"input": "Comí pollo teriyaki.", "expected": "aclaracion", "note": "no en catálogo"},
+  {"input": "Agua.", "expected": "registrado_o_aclaracion", "note": "intencion ambigua"},
+  {"input": "Comí aguacate con limón.", "expected": "registrado_o_aclaracion", "note": "aguacate existe; limón no"},
+  {"input": "Hoy tengo mucha hambre.", "expected": "aclaracion", "note": "intención desconocida"}
+]
