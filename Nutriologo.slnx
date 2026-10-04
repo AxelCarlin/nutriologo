@@ -9,5 +9,6 @@
     <Project Path="tests/Nutriologo.Application.Tests/Nutriologo.Application.Tests.csproj" />
     <Project Path="tests/Nutriologo.Domain.Tests/Nutriologo.Domain.Tests.csproj" />
     <Project Path="tests/Nutriologo.Infrastructure.Tests/Nutriologo.Infrastructure.Tests.csproj" />
+    <Project Path="tests/Nutriologo.Integration.Tests/Nutriologo.Integration.Tests.csproj" />
   </Folder>
 </Solution>

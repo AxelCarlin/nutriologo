@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Nutriologo.Infrastructure\Nutriologo.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Nutriologo.Api\Nutriologo.Api.csproj" />
   </ItemGroup>
 
 </Project>

@@ -24,3 +24,4 @@ app.MapNutricion();
 app.MapChat();
 
 app.Run();
+public partial class Program { }
