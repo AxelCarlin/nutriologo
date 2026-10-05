@@ -53,6 +53,14 @@ public class StructuredOutputValidatorTests
     }
 
     [Fact]
+    public void ListarComidas_SeMapea()
+    {
+        var raw = """{"intencion":"listar_comidas","requiere_aclaracion":false,"alimentos":[]}""";
+        Assert.True(StructuredOutputValidator.TryParse(raw, out var r, out _));
+        Assert.Equal(AiIntent.ListarComidas, r!.Intent);
+    }
+
+    [Fact]
     public void ConfianzaFueraDeRango_Falla() =>
         Assert.False(StructuredOutputValidator.TryParse(
             """{"intencion":"registrar_comida","requiere_aclaracion":false,"alimentos":[{"nombre":"a","confianza":1.5}]}""",
