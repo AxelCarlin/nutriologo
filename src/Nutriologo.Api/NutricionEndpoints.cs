@@ -166,6 +166,19 @@ public static class NutricionEndpoints
             return Results.Ok(p);
         });
 
+        // Nombre del usuario para el sidebar. El cliente lo guarda en localStorage
+        // al login, pero si la página recarga con un token válido el nombre puede
+        // faltar; este endpoint lo recupera sin cargar el perfil completo.
+        app.MapGet("/api/usuario", async (ClaimsPrincipal user, AppDbContext db) =>
+        {
+            var idUsuario = JwtIssuer.UserId(user);
+            var nombre = await db.Usuarios
+                .Where(u => u.Id == idUsuario)
+                .Select(u => u.Nombre)
+                .FirstOrDefaultAsync();
+            return Results.Ok(new { nombre });
+        }).RequireAuthorization();
+
         g.MapPost("/comidas", async (ComidaRequest r, ClaimsPrincipal user, AppDbContext db, IFoodCatalogSource catalog) =>
         {
             var result = await MealRegistrar.RegisterAsync(db, catalog, JwtIssuer.UserId(user),

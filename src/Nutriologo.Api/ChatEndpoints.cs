@@ -140,6 +140,40 @@ public static class ChatEndpoints
                 await sink.EnviarAsync("done", new { ms = reloj.ElapsedMilliseconds });
             }
         }).RequireRateLimiting("business").RequireAuthorization();
+
+        // ============ Lista de conversaciones (historial del sidebar) ============
+        // El sidebar muestra las conversaciones recientes del usuario. Sin este
+        // endpoint no había forma de poblar ese historial desde el cliente.
+        app.MapGet("/api/conversaciones", async (ClaimsPrincipal user, AppDbContext db) =>
+        {
+            var idUsuario = JwtIssuer.UserId(user);
+
+            var items = await db.Conversaciones
+                .Where(c => c.IdUsuario == idUsuario && c.Estatus == 1)
+                .OrderByDescending(c => c.FechaModificacion)
+                .Take(20)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Titulo,
+                    c.FechaModificacion,
+                    // Primer mensaje del usuario: sirve de título cuando la
+                    // conversación no tiene uno.
+                    PrimerMensaje = db.Mensajes
+                        .Where(m => m.IdConversacion == c.Id && m.IdRolMensaje == 1 && m.Estatus == 1)
+                        .OrderBy(m => m.FechaMensaje)
+                        .Select(m => m.Contenido)
+                        .FirstOrDefault(),
+                })
+                .ToListAsync();
+
+            return Results.Ok(items.Select(c => new
+            {
+                c.Id,
+                Titulo = string.IsNullOrWhiteSpace(c.Titulo) ? c.PrimerMensaje : c.Titulo,
+                c.FechaModificacion,
+            }));
+        }).RequireAuthorization();
     }
 
     /// <summary>

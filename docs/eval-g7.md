@@ -5,7 +5,7 @@
 - Requiere aclaración (inesperada): 0
 - Incorrectos: 0
 - Precisión: 100 %
-- Latencia total: 4 ms (18 consultas)
+- Latencia total: 8 ms (18 consultas)
 
 | Query | Esperado | Resultado | Motivo |
 |---|---|---|---|

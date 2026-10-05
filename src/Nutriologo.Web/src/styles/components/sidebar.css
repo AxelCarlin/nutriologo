@@ -1,197 +1,564 @@
-/* ========== SIDEBAR + APP SHELL ==========
-   Links en mono MAYÚSCULAS; activo = texto blanco + filete inferior. */
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR — estilo Nothing
+   ═══════════════════════════════════════════════════════════════
+   Reglas que este archivo respeta:
+   · Encabezado y pie miden exactamente 76px, con borde de 1px.
+   · Un único margen horizontal de 20px en TODAS las zonas.
+   · Ítems de 44px, píldora 999px, sin cajas cuadradas.
+   · Rojo SOLO para algo pendiente (nunca "estás aquí").
+   · Sin sombras, blur ni gradientes.
+   · La píldora del activo se desliza; nada más se mueve.
+   ═══════════════════════════════════════════════════════════════ */
 
-.app-shell {
-  min-height: 100svh;
-  display: flex;
-}
+.sb {
+  --sb-w: 240px;
+  --sb-rail-w: 64px;
+  --sb-pad-x: 20px;
+  --sb-item-h: 44px;
+  --sb-mono: 28px;
 
-/* Flex child con ancho intrínseco: sin min-width:0, .topbar__inner (720px)
-   desbordaba y empujaba el flex container en vez de centrarse. */
-.app-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.sidebar {
-  width: 240px;
+  width: var(--sb-w);
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--space-lg);
-  padding: var(--space-xl) var(--space-md);
-  border-right: 1px solid var(--nt-line);
-  background: var(--nt-bg);
+  border-right: 1px solid var(--bd);
+  background: var(--bg);
   position: sticky;
   top: 0;
-  height: 100svh;
+  height: 100dvh;
+  overflow: hidden;
+  transition: width .5s var(--fl);
 }
 
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 var(--space-sm);
-}
+/* ═══════════════════ ENCABEZADO 76px ═══════════════════ */
 
-/* Marca en Doto (dot-matrix), no en una bola azul. */
-.sidebar-logo {
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  background: var(--nt-ink);
-  color: var(--nt-bg);
-  font: 400 20px/1 var(--nt-font-dot);
-  flex-shrink: 0;
-}
-
-.sidebar-brand-name {
-  font: 400 24px/1 var(--nt-font-dot);
-  text-transform: lowercase;
-}
-
-/* Cabecera de seccion del nav: "instrument panel". */
-/* "Navegacion" / nombre de usuario / logout: decorativos.
-   #999 real (6.3:1 sobre negro) en vez del ~#555 que fallaba accesibilidad. */
-.sidebar-label {
-  font: 400 11px/12px var(--nt-font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--nt-ink-2);
-}
-
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.sidebar-link__label {
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-}
-
-.sidebar-link {
+.sb__hd {
+  height: 76px;
+  flex: none;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
-  color: var(--nt-ink-2);
-  text-decoration: none;
-  font: 400 11px/12px var(--nt-font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  border-bottom: 1px solid transparent;
+  padding: 0 var(--sb-pad-x);
+  border-bottom: 1px solid var(--bd);
+}
+
+.sb__mono {
+  width: var(--sb-mono);
+  height: var(--sb-mono);
+  flex: none;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--t1);
+  font: 800 14px/1 var(--nd-font-dot);
+  color: var(--t1);
+}
+
+.sb__mono--sm {
+  font-size: 11px;
+}
+
+.sb__wm {
+  font: 800 20px/1 var(--nd-font-dot);
+  letter-spacing: .02em;
+  white-space: nowrap;
+  color: var(--t1);
+}
+
+/* ═══════════════════ ACCIONES RÁPIDAS ═══════════════════ */
+
+.sb__acts {
+  display: grid;
+  gap: 6px;
+  padding: 12px 12px 0;
+}
+
+.sb__act {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 40px;
+  padding: 0 13px;
+  border: 1px solid var(--bd2);
+  border-radius: 999px;
   background: none;
+  color: var(--t2);
+  font: 400 11px/1 var(--nd-font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
   cursor: pointer;
-  width: 100%;
-  text-align: left;
+  transition: border-color .3s var(--fl), color .3s var(--fl);
 }
 
-.sidebar-link:hover {
-  color: var(--nt-ink);
+.sb__act:hover {
+  border-color: var(--t1);
+  color: var(--t1);
 }
 
-/* Activo: punto rojo a la izquierda (un solo acento por pantalla).
-   El subrayado fino solo no alcanza el contraste que pide la criticism. */
-.sidebar-link.router-link-active {
-  color: var(--nt-ink);
-}
-
-.sidebar-link.router-link-active::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--nt-red);
+.sb__kc {
+  margin-left: auto;
+  font: 400 10px/1 var(--nd-font-mono);
+  color: var(--t3);
+  border: 1px solid var(--bd);
+  border-radius: 6px;
+  padding: 1px 6px;
   flex-shrink: 0;
 }
 
-/* SALIR: texto discreto anclado abajo. Sin borde, sin peso visual
-   equivalente al resto del nav. */
-.sidebar-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-top: var(--space-md);
-  border-top: 1px solid var(--nt-line);
+/* ═══════════════════ NAVEGACIÓN ═══════════════════ */
+
+.sb__nav {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bd2) transparent;
 }
 
-.sidebar-logout {
-  color: var(--nt-ink-3);
-  font-size: 10px;
-}
+.sb__nav::-webkit-scrollbar { width: 6px; }
+.sb__nav::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 999px; }
 
-.sidebar-logout:hover {
-  color: var(--nt-ink);
-}
-
-.sidebar-user {
-  font: 400 11px/12px var(--nt-font-mono);
+.sb__grp {
+  font: 400 11px/1 var(--nd-font-mono);
+  letter-spacing: .08em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--nt-ink-2);
-  padding: 0 12px 4px;
+  color: var(--t3);
+  padding: 16px 12px 8px;
+  margin: 0;
+  white-space: nowrap;
+  transition: opacity .2s;
+}
+
+/* La píldora: absoluta dentro del nav, se desliza con transform */
+.sb__th {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 0;
+  height: var(--sb-item-h);
+  border-radius: 999px;
+  background: var(--t1);
+  transform: translateY(0);
+  transition: transform .5s var(--fl), height .3s var(--fl), opacity .2s;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.sb__a {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--sb-item-h);
+  padding: 0 13px;
+  border-radius: 999px;
+  color: var(--t2);
+  text-decoration: none;
+  font: 400 11px/1 var(--nd-font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: color .3s var(--fl);
+}
+
+.sb__a:hover {
+  color: var(--t1);
+}
+
+.sb__a[aria-current='page'] {
+  color: var(--bg);
+}
+
+.sb__a:focus-visible {
+  outline: 2px solid var(--t1);
+  outline-offset: -2px;
+}
+
+.sb__lb {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Punto pendiente: al final de la fila, nunca antes del icono */
+.sb__bd {
+  margin-left: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--red);
+  flex-shrink: 0;
+}
+
+/* Contador de comidas */
+.sb__cnt {
+  margin-left: auto;
+  font: 400 10px/1 var(--nd-font-mono);
+  border: 1px solid var(--bd2);
+  border-radius: 999px;
+  padding: 0 7px;
+  line-height: 16px;
+  color: var(--t2);
+}
+
+.sb__a[aria-current='page'] .sb__cnt {
+  border-color: var(--bg);
+  color: var(--bg);
+}
+
+.sb__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+/* ═══════════════════ HISTORIAL ═══════════════════ */
+
+.sb__row {
+  position: relative;
+}
+
+.sb__ex {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--t3);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  z-index: 2;
+  transition: color .3s var(--fl);
+}
+
+.sb__ex::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-1px) rotate(45deg);
+  transition: transform .5s var(--fl);
+}
+
+.sb__ex[aria-expanded='true']::before {
+  transform: translateY(1px) rotate(-135deg);
+}
+
+.sb__row:has(.sb__a[aria-current='page']) .sb__ex {
+  color: var(--bg);
+}
+
+.sb__sub {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .5s var(--fl);
+}
+
+.sb__sub--open {
+  grid-template-rows: 1fr;
+}
+
+.sb__sub > div {
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0s .5s;
+}
+
+.sb__sub--open > div {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.sb__cv {
+  display: block;
+  position: relative;
+  height: 34px;
+  line-height: 34px;
+  padding: 0 13px 0 43px;
+  border-radius: 8px;
+  font: 300 14px/34px 'Space Grotesk', sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--t3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.sb__cv:hover,
+.sb__cv[aria-current='true'] {
+  color: var(--t1);
+}
+
+.sb__cv[aria-current='true']::before {
+  content: '';
+  position: absolute;
+  left: 31px;
+  top: 15px;
+  width: 4px;
+  height: 4px;
+  background: var(--t1);
+}
+
+/* ═══════════════════ INSTRUMENTO HOY ═══════════════════ */
+
+.sb__hoy {
+  flex: none;
+  margin: 0 var(--sb-pad-x) 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--bd);
+  white-space: nowrap;
+}
+
+.sb__lab {
+  font: 400 11px/1.4 var(--nd-font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--t3);
+  margin: 0;
+}
+
+.sb__lab--vacio {
+  margin-top: 8px;
+}
+
+.sb__num {
+  font: 400 22px/1.2 var(--nd-font-mono);
+  color: var(--t1);
+  margin: 4px 0 10px;
+}
+
+.sb__num small {
+  font-size: 12px;
+  color: var(--t3);
+}
+
+.sb__seg {
+  display: flex;
+  gap: 3px;
+}
+
+.sb__seg i {
+  flex: 1;
+  height: 10px;
+  background: var(--bd);
+  border-radius: 1px;
+  transition: background .3s var(--fl);
+}
+
+.sb__seg i.sb__seg--on {
+  background: var(--t1);
+}
+
+.sb__mac {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.sb__mac div {
+  display: grid;
+  grid-template-columns: 12px 1fr 38px;
+  gap: 8px;
+  align-items: center;
+  font: 400 10px/1 var(--nd-font-mono);
+  color: var(--t3);
+}
+
+.sb__tr {
+  display: block;
+  height: 2px;
+  background: var(--bd);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.sb__tr i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--t1);
+  transition: width 1s steps(20);
+}
+
+.sb__mac div > :last-child {
+  text-align: right;
+  color: var(--t2);
+}
+
+.sb__rch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.sb__rch .sb__lab {
+  margin-right: auto;
+}
+
+.sb__rch i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--bd2);
+}
+
+.sb__rch i.sb__rch--on {
+  background: var(--t1);
+}
+
+.sb__rch i.sb__rch--td {
+  background: none;
+  border: 1px solid var(--t1);
+}
+
+/* ═══════════════════ PIE 76px ═══════════════════ */
+
+.sb__ft {
+  height: 76px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 var(--sb-pad-x);
+  border-top: 1px solid var(--bd);
+}
+
+.sb__who {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.2;
+  overflow: hidden;
+}
+
+.sb__who-nombre {
+  display: block;
+  font: 400 12px/1.4 var(--nd-font-mono);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--t1);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* La regla mobile del topbar de App.vue: en <1023px la sidebar se oculta
-   y aparece esta barra con el botón de menú. */
-.app-topbar {
+.sb__who .sb__lab {
+  font-size: 10px;
+}
+
+.sb__ib {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  background: none;
+  color: var(--t2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color .2s, background .3s var(--fl);
+}
+
+.sb__ib:hover {
+  color: var(--t1);
+  background: var(--bd);
+}
+
+/* ═══════════════════ MODO RIEL (≤ 900px) ═══════════════════ */
+
+.sb--rail {
+  width: var(--sb-rail-w);
+}
+
+.sb--rail .sb__hd,
+.sb--rail .sb__ft {
+  padding: 0;
+  justify-content: center;
+}
+
+/* En riel las etiquetas se ocultan con clip (no display:none) para que el
+   lector de pantalla siga anunciando el nombre de cada ítem. */
+.sb--rail .sb__lb,
+.sb--rail .sb__cnt {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.sb--rail .sb__grp,
+.sb--rail .sb__wm,
+.sb--rail .sb__acts,
+.sb--rail .sb__hoy,
+.sb--rail .sb__who,
+.sb--rail .sb__bd {
   display: none;
-  align-items: center;
-  gap: var(--space-sm);
-  height: var(--nt-header-h);
-  padding: env(safe-area-inset-top, 0px) var(--space-md) 0;
-  border-bottom: 1px solid var(--nt-line);
-  background: var(--nt-bg);
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
 
-.app-topbar__title {
-  font: 400 11px/12px var(--nt-font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--nt-ink-2);
-  flex: 1;
+/* En riel el pendiente pasa a ser insignia sobre el icono */
+.sb--rail .sb__a {
+  padding: 0;
+  justify-content: center;
 }
 
-.scrim {
-  display: none;
+.sb--rail .sb__a .sb__bd {
+  display: block;
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  margin: 0;
 }
 
-@media (max-width: 1023px) {
-  .sidebar {
+.sb--rail .sb__th {
+  left: 12px;
+  right: 12px;
+}
+
+/* ═══════════════════ CAJÓN MÓVIL (< 640px) ═══════════════════ */
+
+@media (max-width: 640px) {
+  .sb {
     position: fixed;
     left: 0;
     top: 0;
     bottom: 0;
     z-index: 20;
+    width: 272px;
     transform: translateX(-100%);
-    transition: transform var(--nt-t-slow) var(--nt-ease);
-    width: 260px;
+    transition: transform .5s var(--fl);
   }
 
-  .sidebar.open {
+  .sb--drawer {
     transform: none;
   }
+}
 
-  .scrim {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    z-index: 15;
-    border: 0;
-  }
+/* ═══════════════════ ACCESIBILIDAD ═══════════════════ */
 
-  .app-topbar {
-    display: flex;
+@media (prefers-reduced-motion: reduce) {
+  .sb,
+  .sb__th,
+  .sb__a,
+  .sb__act,
+  .sb__ib,
+  .sb__seg i,
+  .sb__tr i,
+  .sb__sub {
+    transition-duration: .001s !important;
+    animation-duration: .001s !important;
   }
 }
