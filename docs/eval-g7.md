@@ -4,7 +4,7 @@
 - Correctos: 18
 - Requiere aclaración (inesperada): 0
 - Incorrectos: 0
-- Precisión: 100%
+- Precisión: 100 %
 - Latencia total: 3 ms (18 consultas)
 
 | Query | Esperado | Resultado | Motivo |

@@ -21,11 +21,17 @@ services:
     image: ollama/ollama:latest
     container_name: nutriologo-ollama
     restart: unless-stopped
+    # Solo loopback: la API llega por la red interna de compose (http://ollama:11434).
+    # Publicar en 0.0.0.0 exponia el LLM a toda la LAN sin autenticacion.
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
+      # Bind mount a los 25 GB de modelos ya descargados (owner ollama:ollama).
+      # El contenedor corre como root, asi que puede leerlos sin chmod.
       - /usr/share/ollama/.ollama:/root/.ollama
-    # Para GPU en K, instala nvidia-container-toolkit y descomenta:
+    # GPU: requiere nvidia-container-toolkit instalado en el host.
+    # Verificacion: docker exec nutriologo-ollama ollama ps   (debe listar models)
+    # Si corre solo en CPU, la inferencia va dozens de veces mas lenta.
     # deploy:
     #   resources:
     #     reservations:
