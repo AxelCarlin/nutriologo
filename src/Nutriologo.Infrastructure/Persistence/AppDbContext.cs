@@ -3,6 +3,7 @@ namespace Nutriologo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Nutriologo.Domain.Catalog;
 using Nutriologo.Domain.Consumption;
+using Nutriologo.Domain.Conversations;
 using Nutriologo.Domain.Entities;
 using Nutriologo.Domain.Import;
 using Nutriologo.Infrastructure.Persistence.Configurations;
@@ -54,6 +55,8 @@ public class AppDbContext : DbContext
     public DbSet<MedicionCorporal> MedicionesCorporales => Set<MedicionCorporal>();
     public DbSet<ReglaRiesgoObjetivoRec> ReglaRiesgoObjetivos => Set<ReglaRiesgoObjetivoRec>();
     public DbSet<ReglaRiesgoMetaCaloricaRec> ReglaRiesgoMetasCaloricas => Set<ReglaRiesgoMetaCaloricaRec>();
+    public DbSet<Conversacion> Conversaciones => Set<Conversacion>();
+    public DbSet<Mensaje> Mensajes => Set<Mensaje>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -65,6 +68,7 @@ public class AppDbContext : DbContext
         ImportMapping.Apply(modelBuilder);
         ProfileMapping.Apply(modelBuilder);
         RiskRulesMapping.Apply(modelBuilder);
+        ConversationMapping.Apply(modelBuilder);
         base.OnModelCreating(modelBuilder);
         // Schema usa timestamp (sin zona): normaliza DateTime UTC a Kind=Unspecified.
         foreach (var entityType in modelBuilder.Model.GetEntityTypes())

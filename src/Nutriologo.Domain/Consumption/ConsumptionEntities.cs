@@ -22,6 +22,20 @@ public class RegistroComida : AuditableEntity
         if (CaloriasEstimadas is not null && CaloriasEstimadas < 0) throw new DomainException("CaloriasEstimadas no puede ser negativa.");
     }
 
+    /// <summary>
+    /// Baja lógica (Estatus = 0). Es el camino documentado para corregir un
+    /// registro erróneo (p.ej. 100 PIEZA en vez de 100 g): el contenido nunca
+    /// se sobrescribe, solo se excluye de las lecturas. Idempotente.
+    /// </summary>
+    public void DarDeBaja(int idUsuarioModifica)
+    {
+        Estatus = 0;
+        IdUsuarioModifica = idUsuarioModifica;
+        FechaModificacion = DateTime.UtcNow;
+    }
+
+    public bool Activa => Estatus == 1;
+
     public RegistroComida() { }
 
     public RegistroComida(int idUsuario, DateTime fechaConsumo, string? nombre = null, int? idTipoComida = null,
@@ -52,13 +66,25 @@ public class AlimentoRegistroComida : AuditableEntity
         if (Confianza is not null && (Confianza < 0 || Confianza > 1)) throw new DomainException("Confianza debe estar en [0,1].");
     }
 
+    /// <summary>Baja lógica en cascada con la comida padre. Idempotente.</summary>
+    public void DarDeBaja(int idUsuarioModifica)
+    {
+        Estatus = 0;
+        IdUsuarioModifica = idUsuarioModifica;
+        FechaModificacion = DateTime.UtcNow;
+    }
+
+    public bool Activa => Estatus == 1;
+
     public AlimentoRegistroComida() { }
 
     public AlimentoRegistroComida(int idRegistroComida, int idAlimento, int idUnidadMedida, decimal cantidad,
-        decimal? caloriasEstimadas = null, decimal? confianza = null, string? observacion = null, int idUsuarioCrea = 1)
+        decimal? cantidadGramos = null, decimal? caloriasEstimadas = null, decimal? confianza = null,
+        string? observacion = null, int idUsuarioCrea = 1)
     {
         IdRegistroComida = idRegistroComida; IdAlimento = idAlimento; IdUnidadMedida = idUnidadMedida;
-        Cantidad = cantidad; CaloriasEstimadas = caloriasEstimadas; Confianza = confianza;
+        Cantidad = cantidad; CantidadGramos = cantidadGramos; CaloriasEstimadas = caloriasEstimadas;
+        Confianza = confianza;
         Observacion = observacion; IdUsuarioCrea = idUsuarioCrea;
         FechaCreacion = DateTime.UtcNow; FechaModificacion = DateTime.UtcNow; Estatus = 1;
         DatosValidos();
