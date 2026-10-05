@@ -1,13 +1,16 @@
-/* ========== AURENIX DESIGN SYSTEM — índice ==========
-   Orden: tokens → base → componentes (un archivo por componente).
-   Para localizar un estilo: styles/components/<componente>.css */
+/* ========== NOTHING DESIGN SYSTEM — índice ==========
+   Orden: fonts → tokens → base → componentes.
+   Fuentes: Doto (display), Space Grotesk (body), Space Mono (data/labels). */
+
+@import url('https://fonts.googleapis.com/css2?family=Doto:wght@400;500;700&family=Space+Grotesk:wght@300;400;500;700&family=Space+Mono:wght@400;700&display=swap');
 
 @import './tokens.css';
 @import './base.css';
 @import './components/page-title.css';
 @import './components/glass.css';
 @import './components/buttons.css';
-@import './components/orb.css';
+@import './components/cards.css';
+@import './components/backgrounds.css';
 @import './components/chat.css';
 @import './components/composer.css';
 @import './components/sidebar.css';

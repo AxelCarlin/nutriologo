@@ -96,7 +96,10 @@
             <span class="rows__hora num">{{ hora(c.hora) }}</span>
             <span class="rows__cuerpo">
               <span class="rows__titulo">{{ c.nombre ?? 'Sin nombre' }}</span>
-              <span v-if="c.tipo" class="label">{{ c.tipo }}</span>
+              <!-- `tipo` solo se muestra cuando APORTA algo: el formulario
+                   guarda el nombre del tipo en `nombre`, así que mostrarlo siempre
+                   repetía "Desayuno · Desayuno" en cada fila. -->
+              <span v-if="c.tipo && c.tipo !== c.nombre" class="label">{{ c.tipo }}</span>
             </span>
             <span class="rows__valor num">{{ Math.round(c.caloriasEstimadas ?? 0) }}</span>
             <span class="label">KCAL</span>

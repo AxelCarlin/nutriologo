@@ -1,0 +1,125 @@
+/* ========== BACKGROUNDS — Nothing Motion ==========
+   Matrices de puntos, líneas de escaneo, radar y cintas segmentadas.
+   Todo mecánico, steps(), sin fluidez innecesaria. */
+
+/* ===== BASE BG BOX ===== */
+.bgbox {
+  position: relative;
+  height: 220px;
+  border: 1px solid var(--nd-border);
+  overflow: hidden;
+  background: var(--nd-black);
+}
+
+.bgbox canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.bgbox .lbl {
+  position: absolute;
+  left: 16px;
+  bottom: 12px;
+  font: 400 var(--nd-caption) / 1.4 var(--nd-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--nd-text-secondary);
+}
+
+/* ===== DOT-MATRIX WAVE (sigue cursor) ===== */
+/* El canvas se dibuja via JS (ver useNothingMotion dotMatrixWave) */
+.bgbox.wave {
+  background: var(--nd-black);
+}
+
+/* ===== SCANLINE (línea de escaneo) ===== */
+.scan {
+  background-image: radial-gradient(var(--nd-border-visible) 1px, transparent 1.5px);
+  background-size: 16px 16px;
+}
+
+.scan::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--nd-accent);
+  top: 0;
+  animation: scan 3s steps(22) infinite;
+}
+
+@keyframes scan {
+  to { top: 100%; }
+}
+
+/* ===== RADAR (pasos) ===== */
+.pulse {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.pulse i {
+  position: absolute;
+  border: 1px solid var(--nd-border-visible);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: ring 3s steps(12) infinite;
+  opacity: 0;
+}
+
+.pulse i:nth-child(2) { animation-delay: 1s; }
+.pulse i:nth-child(3) { animation-delay: 2s; }
+
+@keyframes ring {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(10); }
+}
+
+/* ===== MARQUEE (cinta segmentada) ===== */
+.mq {
+  overflow: hidden;
+  white-space: nowrap;
+  border-block: 1px solid var(--nd-border);
+  padding: 14px 0;
+  margin-top: 16px;
+  background: var(--nd-surface);
+}
+
+.mq div {
+  display: inline-block;
+  animation: mq 16s steps(160) infinite;
+  font: 400 12px/1 var(--nd-font-mono);
+  letter-spacing: 0.1em;
+  color: var(--nd-text-secondary);
+}
+
+@keyframes mq {
+  to { transform: translateX(-50%); }
+}
+
+/* ===== DOT GRID SUBTLE (fondo sutil) ===== */
+.dot-grid {
+  background-image: radial-gradient(circle, var(--nd-border-visible) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.dot-grid-subtle {
+  background-image: radial-gradient(circle, var(--nd-border) 0.5px, transparent 0.5px);
+  background-size: 12px 12px;
+}
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  .scan::after,
+  .pulse i,
+  .mq div {
+    animation: none !important;
+  }
+}

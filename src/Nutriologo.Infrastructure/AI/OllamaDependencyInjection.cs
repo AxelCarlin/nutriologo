@@ -33,7 +33,8 @@ public static class OllamaDependencyInjection
                 sp.GetRequiredService<IHttpClientFactory>().CreateClient("Ollama.Interpreter"), visionModel));
         services.AddScoped<IChatInterpreter>(sp =>
             new OllamaChatInterpreter(
-                sp.GetRequiredService<IHttpClientFactory>().CreateClient("Ollama.Interpreter"), model));
+                sp.GetRequiredService<IHttpClientFactory>().CreateClient("Ollama.Interpreter"), model,
+                sp.GetService<ILogger<OllamaChatInterpreter>>()));
         services.AddScoped<IConversationalResponder>(sp =>
             new OllamaConversationalResponder(
                 sp.GetRequiredService<IHttpClientFactory>().CreateClient("Ollama.Conversational"), model, config,

@@ -168,7 +168,8 @@ public static class NutricionEndpoints
 
         g.MapPost("/comidas", async (ComidaRequest r, ClaimsPrincipal user, AppDbContext db, IFoodCatalogSource catalog) =>
         {
-            var result = await MealRegistrar.RegisterAsync(db, catalog, JwtIssuer.UserId(user), r.FechaConsumo, r.Nombre, r.Items);
+            var result = await MealRegistrar.RegisterAsync(db, catalog, JwtIssuer.UserId(user),
+                r.FechaConsumo, r.Nombre, r.Items, r.TipoComida);
             return result.Ok ? Results.Created($"/api/comidas/{result.Id}", new { id = result.Id })
                 : Results.BadRequest(new { result.RequiereAclaracion, result.Mensaje });
         });
@@ -179,9 +180,27 @@ public static class NutricionEndpoints
             var q = db.RegistrosComida.Where(x => x.IdUsuario == idUsuario && x.Estatus == 1);
             if (fecha is not null) q = q.Where(x => x.FechaConsumo.Date == fecha.Value.Date);
             var items = await q.OrderByDescending(x => x.FechaConsumo)
-                .Select(x => new { x.Id, x.FechaConsumo, x.Nombre, x.CaloriasEstimadas })
+                .Select(x => new { x.Id, x.FechaConsumo, x.Nombre, x.CaloriasEstimadas, x.IdTipoComida })
                 .ToListAsync();
-            return Results.Ok(items);
+
+            // TipoComida no está mapeada en EF: se resuelve con SQL crudo igual que
+            // en /panel y se cruza en memoria. `IdTipoComida` puede venir null
+            // (registros viejos o cliente que no manda el tipo): entonces `tipo`
+            // queda en null y el front muestra "Sin tipo" en vez de inventar uno.
+            //
+            // Trae `Descripcion` ("Desayuno") y no `Codigo` ("DESAYUNO"): el panel
+            // lo muestra junto a la hora, y el código en crudo parecía un dato
+            // interno filtrado a la pantalla.
+            var descripcionPorId = await db.Database.SqlQueryRaw<IdNombreDto>(
+                """SELECT "Id", "Descripcion" AS "Nombre" FROM "TipoComida" """)
+                .ToDictionaryAsync(t => t.Id, t => t.Nombre);
+
+            return Results.Ok(items.Select(x => new
+            {
+                x.Id, x.FechaConsumo, x.Nombre, x.CaloriasEstimadas, x.IdTipoComida,
+                Tipo = x.IdTipoComida is not null && descripcionPorId.TryGetValue(x.IdTipoComida.Value, out var d)
+                    ? d : null,
+            }));
         });
 
         // DELETE /comidas/{id} — baja lógica (Estatus = 0), nunca borrado físico.
@@ -238,9 +257,11 @@ public static class NutricionEndpoints
 
             var consumidas = comidasHoy.Sum(c => c.CaloriasEstimadas ?? 0m);
 
-            // Tipos de comida por Id (tabla no mapeada).
+            // Tipos de comida por Id (tabla no mapeada). Se trae `Descripcion`
+            // ("Desayuno") y no `Codigo` ("DESAYUNO"): esto se pinta junto a la
+            // hora en el panel, y el código se leía como un dato interno.
             var tiposComida = await db.Database.SqlQueryRaw<IdNombreDto>(
-                """SELECT "Id", "Codigo" AS "Nombre" FROM "TipoComida" """).ToListAsync();
+                """SELECT "Id", "Descripcion" AS "Nombre" FROM "TipoComida" """).ToListAsync();
             var tipoPorId = tiposComida.ToDictionary(t => t.Id, t => t.Nombre);
 
             // Macros del dia, escalados con la misma base que usa MealRegistrar
@@ -425,7 +446,13 @@ public static class NutricionEndpoints
 
     }
 
-    public record ComidaRequest(DateTime FechaConsumo, string? Nombre, IReadOnlyList<MealItemInput> Items);
+    /// <summary>
+    /// `TipoComida` es opcional a propósito: los clientes viejos no lo mandan y el
+    /// registro igual se guarda (queda sin tipo). Sin él, la fila se guardaba
+    /// siempre con `IdTipoComida = null` y el panel caía al rótulo "Comida" para
+    /// desayuno, colación y cena por igual.
+    /// </summary>
+    public record ComidaRequest(DateTime FechaConsumo, string? Nombre, IReadOnlyList<MealItemInput> Items, int? TipoComida = null);
     public record PerfilRequest(int IdSexoBiologico, int IdNivelActividadFisica, DateTime FechaNacimiento, decimal Altura, string? AlturaUnidad);
     public record MedicionRequest(int IdTipoMedicionCorporal, decimal Valor, DateTime FechaMedicion, string? Observacion);
     public record ObjetivoRequest(decimal PesoKg, decimal AlturaCm, int EdadAnios, SexoBiologico Sexo, decimal FactorActividad, TipoObjetivo TipoObjetivo, decimal? PesoObjetivoKg, decimal? SemanasObjetivo, EstadoFisiologicoCodigo Estado = EstadoFisiologicoCodigo.Ninguno);

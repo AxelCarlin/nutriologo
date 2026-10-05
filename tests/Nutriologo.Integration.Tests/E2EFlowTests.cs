@@ -155,7 +155,7 @@ public class E2EFlowTests
     }
 
     [Fact]
-    public async Task Chat_RegistraComida_Y_Balance()
+    public async Task Chat_NoRegistra_SoloRedirigeConLosDatos()
     {
         var (client, _) = await AuthedClientAsync();
         using (client)
@@ -163,12 +163,65 @@ public class E2EFlowTests
             var r = await client.PostAsJsonAsync("/api/conversacion/mensaje", new { texto = "Comí dos huevos y dos tortillas" });
             r.EnsureSuccessStatusCode();
             using var doc = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
-            Assert.Equal("registrado", doc.RootElement.GetProperty("tipo").GetString());
+            var raiz = doc.RootElement;
+
+            Assert.Equal("redirigir", raiz.GetProperty("tipo").GetString());
+
+            // La redirección lleva los datos y la vista: nada queda guardado.
+            var red = raiz.GetProperty("redireccion");
+            Assert.Equal("registrar", red.GetProperty("vista").GetString());
+            Assert.False(string.IsNullOrWhiteSpace(red.GetProperty("etiqueta").GetString()));
+            Assert.True(red.GetProperty("items").GetArrayLength() >= 1);
+
+            // El contrato viejo ("registrado" + id) no puede volver.
+            Assert.False(raiz.TryGetProperty("id", out _));
         }
     }
 
     [Fact]
-    public async Task Chat_Pizza_Aclaracion_SinPersistir()
+    public async Task Chat_NoEscribeComidas_AlTerminarElTurno()
+    {
+        // El punto del cambio: el chat arma el borrador y lo entrega, pero la
+        // tabla de comidas no se toca. Antes escribía una fila por mensaje.
+        var (client, _) = await AuthedClientAsync();
+        using (client)
+        {
+            var antes = await ContarComidasAsync(client);
+            var r = await client.PostAsJsonAsync("/api/conversacion/mensaje", new { texto = "Comí dos huevos y dos tortillas" });
+            r.EnsureSuccessStatusCode();
+            var despues = await ContarComidasAsync(client);
+
+            Assert.Equal(antes, despues);
+        }
+    }
+
+    /// <summary>Cantidad real de comidas del usuario: la lista, no el panel.</summary>
+    private static async Task<int> ContarComidasAsync(HttpClient client)
+    {
+        using var r = await client.GetAsync("/api/comidas");
+        r.EnsureSuccessStatusCode();
+        using var doc = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
+        return doc.RootElement.ValueKind == JsonValueKind.Array
+            ? doc.RootElement.GetArrayLength()
+            : 0;
+    }
+
+    /// <summary>
+    /// Pizza NO está en el catálogo, así que el bot no puede cerrar una comida:
+    /// tiene que preguntar, no inventar.
+    ///
+    /// Este test afirmaba `tipo == "aclaracion"` a secas, que dependía de cómo
+    /// clasificara el modelo ese turno: con el modelo ya cargado, "Comí pizza"
+    /// llegaba como `crear_objetivo` y el bot mandaba al usuario a calcular la
+    /// meta calórica. Falla o pasa según el estado de la caché de Ollama.
+    ///
+    /// Lo que importa no es qué tipo exacto devuelve, sino dos cosas que sí
+    /// tienen que ser verdad siempre:
+    ///   1. NO se redirige a `objetivo`: nadie pide la meta y una comida juntos.
+    ///   2. NO se persiste nada: el contrato viejo `id` ya no existe.
+    /// </summary>
+    [Fact]
+    public async Task Chat_Pizza_NoSeRedirigeAlObjetivoYNoPersiste()
     {
         var (client, _) = await AuthedClientAsync();
         using (client)
@@ -176,8 +229,24 @@ public class E2EFlowTests
             var r = await client.PostAsJsonAsync("/api/conversacion/mensaje", new { texto = "Comí pizza" });
             r.EnsureSuccessStatusCode();
             using var doc = JsonDocument.Parse(await r.Content.ReadAsStringAsync());
-            Assert.Equal("aclaracion", doc.RootElement.GetProperty("tipo").GetString());
+
+            var tipo = doc.RootElement.GetProperty("tipo").GetString();
+            Assert.True(tipo is "aclaracion" or "redirigir" or "respuesta",
+                $"tipo inesperado: {tipo}");
+
+            if (tipo == "redirigir")
+            {
+                var vista = doc.RootElement.GetProperty("redireccion").GetProperty("vista").GetString();
+                // Un mensaje sobre comida no puede aterrizar en la meta calórica.
+                Assert.NotEqual("objetivo", vista);
+                // Y si redirige, tiene que ser al formulario, con el item que
+                // el modelo haya detectado.
+                Assert.Equal("registrar", vista);
+            }
+
+            // El chat nunca escribe en la base.
             Assert.False(doc.RootElement.TryGetProperty("id", out _));
+            Assert.Equal(0, await ContarComidasAsync(client));
         }
     }
 }

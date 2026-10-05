@@ -3,12 +3,33 @@ namespace Nutriologo.Application.Abstractions.AI;
 /// <summary>
 /// Contexto nutricional del usuario para el respondedor conversacional.
 /// Lo construye el backend desde servicios internos; el modelo SOLO redacta.
+/// <para><c>Planes</c> es lo único que se agrega del dominio de planes: es de
+/// SOLO LECTURA. El bot analiza planes, no los crea ni los modifica.</para>
 /// </summary>
 public record ContextoUsuario(
     PerfilResumen? Perfil,
     ObjetivoResumen? Objetivo,
     BalanceHoy? Hoy,
-    PesoResumen? Peso
+    PesoResumen? Peso,
+    PlanResumen[]? Planes = null
+);
+
+/// <summary>
+/// Un plan alimentario del usuario, en forma plana: lo que el modelo puede leer
+/// y comparar. Sin identificadores ni datos de otras personas.
+/// </summary>
+public record PlanResumen(
+    string Nombre,
+    string Estado,               // "Activo" | "Borrador" | "Archivado"
+    int Dias,                    // cantidad de días definidos
+    ComidaPlanResumen[] Comidas  // comidas del plan, todas
+);
+
+public record ComidaPlanResumen(
+    string Momento,              // "Desayuno" | "Comida" | "Cena" | "Colación"
+    string Alimento,
+    decimal Cantidad,
+    string Unidad
 );
 
 public record PerfilResumen(

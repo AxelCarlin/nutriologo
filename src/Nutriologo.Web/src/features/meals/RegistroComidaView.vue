@@ -35,7 +35,9 @@
             <input
               v-model="f.texto"
               class="input combobox__input"
+              :class="{ 'combobox__input--sin-resolver': sinResolver(i) }"
               :placeholder="f.nombreAlimento || 'Buscar alimento…'"
+              :aria-invalid="sinResolver(i) || undefined"
               :aria-label="`Alimento ${i + 1}`"
               @focus="abrir(i)"
               @input="abrir(i)"
@@ -131,6 +133,7 @@
 <script setup lang="ts">
 import { X } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { apiFetch } from '../../shared/api/client'
 
 interface Alimento {
@@ -169,6 +172,42 @@ const aviso = ref('')
 const hoyKcal = ref(0)
 const metaCalorica = ref<number | null>(null)
 const tieneObjetivo = ref(false)
+/** Datos que trajo el chat: el formulario viene precargado, no vacío. */
+const desdeChat = ref(false)
+
+const route = useRoute()
+const router = useRouter()
+
+/**
+ * Lee los items que dejó el chat en la query (?nombre=&cantidad=&unidad=).
+ * Los tres vienen en el mismo orden: se leen por índice, no por emparejar
+ * valores sueltos. Si algo no cuadra se ignora la fila, no se inventa.
+ */
+function filasDesdeChat(): Fila[] | null {
+  const nombres = toArray(route.query.nombre)
+  const cantidades = toArray(route.query.cantidad)
+  const unidadesQ = toArray(route.query.unidad)
+  if (!nombres.length) return null
+
+  const out: Fila[] = []
+  for (let i = 0; i < nombres.length; i++) {
+    const nombre = String(nombres[i] ?? '').trim()
+    if (!nombre) continue
+    const cantidad = Number(cantidades[i])
+    out.push({
+      nombreAlimento: nombre,
+      texto: nombre,
+      cantidad: Number.isFinite(cantidad) && cantidad > 0 ? cantidad : 100,
+      unidad: String(unidadesQ[i] ?? 'G').toUpperCase() || 'G',
+    })
+  }
+  return out.length ? out : null
+}
+
+function toArray(v: unknown): unknown[] {
+  if (v === undefined || v === null) return []
+  return Array.isArray(v) ? v : [v]
+}
 
 function vacia(): Fila {
   return { nombreAlimento: '', texto: '', cantidad: 100, unidad: 'G' }
@@ -200,21 +239,82 @@ function elegir(i: number, a: Alimento) {
 }
 
 // kcal en vivo: escala la energía por 100 g a la cantidad pedida.
+/**
+ * Kcal de una fila, usando la misma aritmética que el backend.
+ *
+ * Antes dividía siempre por 100, asumiendo que la cantidad venía en gramos:
+ * con unidad PIEZA daba `155 × 2 / 100 = 3 kcal` por dos huevos. Ahora:
+ *   · si la unidad de la fila es la MISMA que la base del alimento, la cantidad
+ *     ya está en la base y se usa directo;
+ *   · si la fila usa la porción declarada (1 PIEZA = 50 g), se convierte a
+ *     gramos primero: `cantidad × gramos / baseGramos`;
+ *   · cualquier otra combinación se devuelve como `null` en vez de inventar un
+ *     número: la fila muestra "—" y el cálculo real lo hace el servidor al
+ *     registrar.
+ */
 function kcalDe(i: number): number | null {
   const f = filas.value[i]
+  // Fila sin resolver: lo escrito no es el alimento que se guardaría, así que
+  // cualquier cifra sería la de otro alimento. Se muestra "—" hasta que se elija.
+  if (sinResolver(i)) return null
   if (!f?.nombreAlimento || !f.cantidad || f.cantidad <= 0) return null
   const a = alimentos.value.find((x) => x.nombre === f.nombreAlimento)
   if (!a?.kcalPorBase) return null
-  return Math.round((a.kcalPorBase * f.cantidad) / 100)
+
+  const base = a.baseGramos && a.baseGramos > 0 ? a.baseGramos : 100
+
+  // La unidad de la fila coincide con la base del alimento (kcal cada `base`).
+  if (f.unidad === a.baseUnidad) {
+    return Math.round((a.kcalPorBase * f.cantidad) / base)
+  }
+
+  // La fila usa la porción declarada: hay que pasar a gramos primero.
+  const porcion = a.porcion
+  if (porcion && porcion.unidad === f.unidad && porcion.gramos && porcion.gramos > 0) {
+    const gramos = f.cantidad * porcion.gramos
+    return Math.round((a.kcalPorBase * gramos) / base)
+  }
+
+  return null
 }
 
 const total = computed(() =>
   filas.value.reduce((sum, _, i) => sum + (kcalDe(i) ?? 0), 0),
 )
 
+/**
+ * ¿Lo que la persona escribió corresponde al alimento que se va a guardar?
+ *
+ * El combobox tiene dos campos: `texto` es lo que se ve y se escribe, y
+ * `nombreAlimento` es lo que se registra. Solo pasan a coincidir al TOCAR una
+ * sugerencia. Si no, la fila puede mostrar "Huevo" arriba y guardar "Aceite"
+ * (el primero del catálogo, que se preselecciona al abrir), sin avisar: es
+ * comida guardada con el alimento equivocado y el usuario no tiene forma de
+ * enterarse.
+ *
+ * Se acepta el texto vacío (todavía no se escribió nada) y el que coincide con
+ * el alimento ya elegido; en cualquier otro caso la fila está sin resolver.
+ */
+function normalizar(s: string): string {
+  // NFD separa la tilde de la letra; el rango \u0300-\u036f son los diacríticos
+  // combinantes, que es lo que se descarta para comparar "HUEVO" con "Huevo".
+  return s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+}
+
+function sinResolver(i: number): boolean {
+  const f = filas.value[i]
+  if (!f) return true
+  const escrito = normalizar(f.texto)
+  const elegido = normalizar(f.nombreAlimento)
+  // Sin escribir nada: no hay contradicción, la fila sigue con el preseleccionado.
+  if (!escrito) return false
+  return escrito !== elegido
+}
+
 // Validación visible por fila.
 const errores = computed(() =>
-  filas.value.map((f) => {
+  filas.value.map((f, i) => {
+    if (sinResolver(i)) return 'ELEGÍ UN ALIMENTO DE LA LISTA'
     if (!f.nombreAlimento) return 'ELEGÍ UN ALIMENTO'
     if (!f.cantidad || f.cantidad <= 0) return 'CANTIDAD DEBE SER MAYOR A 0'
     return null
@@ -265,7 +365,20 @@ onMounted(async () => {
     hoyKcal.value = panel.caloriasConsumidas
     metaCalorica.value = panel.metaCalorica
     tieneObjetivo.value = panel.tieneObjetivo
-    if (cat[0]) filas.value[0]!.nombreAlimento = cat[0].nombre
+
+    // El chat ya entendió la comida: se precarga y NO se pisa con el primer
+    // alimento del catálogo. El usuario revisa y aprieta REGISTRAR.
+    const traidas = filasDesdeChat()
+    if (traidas) {
+      filas.value = traidas
+      desdeChat.value = true
+      aviso.value = `TRAÍDO DEL CHAT · ${traidas.length} ${traidas.length === 1 ? 'ALIMENTO' : 'ALIMENTOS'} · REVISÁ Y REGISTRÁ`
+      // La query ya se consumió: al recargar no vuelve a precargar.
+      const { nombre, cantidad, unidad, ...resto } = route.query
+      void router.replace({ path: route.path, query: { ...resto } })
+    } else if (cat[0]) {
+      filas.value[0]!.nombreAlimento = cat[0].nombre
+    }
   } catch (e: unknown) {
     error.value = 'No se pudo cargar el catálogo de alimentos.'
   }
@@ -279,7 +392,11 @@ async function registrar() {
   try {
     const cuerpo = {
       FechaConsumo: new Date().toISOString(),
+      // `Nombre` es el texto libre que se muestra; `TipoComida` es el Id con el
+      // que el panel agrupa. Antes no se mandaba y toda fila quedaba sin tipo,
+      // así que el panel mostraba "Comida" para el desayuno y para la cena igual.
       Nombre: tiposComida.find((t) => t.id === idTipoComida.value)?.descripcion ?? 'Comida',
+      TipoComida: idTipoComida.value,
       Items: filas.value
         .filter((f) => f.nombreAlimento)
         .map((f) => ({
@@ -490,6 +607,14 @@ async function registrar() {
   max-height: 260px;
   overflow-y: auto;
   margin: 0;
+}
+
+/* El texto escrito no coincide con el alimento que se guardaría: la fila está
+   a punto de registrar otro alimento sin decirlo. Se marca en el borde, no
+   con un icono, para que se lea de un vistazo. */
+.combobox__input--sin-resolver {
+  border-color: var(--nt-line-strong);
+  border-style: dashed;
 }
 
 .combobox__opcion {

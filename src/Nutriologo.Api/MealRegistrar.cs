@@ -11,12 +11,25 @@ public static class MealRegistrar
     public record Result(bool Ok, bool RequiereAclaracion, string Mensaje, int? Id);
 
     public static async Task<Result> RegisterAsync(AppDbContext db, IFoodCatalogSource catalog,
-        int idUsuario, DateTime fechaConsumo, string? nombre, IReadOnlyList<MealItemInput> items)
+        int idUsuario, DateTime fechaConsumo, string? nombre, IReadOnlyList<MealItemInput> items,
+        int? idTipoComida = null)
     {
         var v = RegisterMealValidator.Validate(new MealInput(idUsuario, fechaConsumo, items), catalog);
         if (!v.Exito) return new(false, v.RequiereAclaracion, v.Mensaje, null);
 
-        var comida = new RegistroComida(idUsuario, fechaConsumo, nombre);
+        // El tipo de comida se persiste solo si existe en el catálogo. Con un Id
+        // desconocido se guarda null (se muestra "Sin tipo") en vez de inventar
+        // una fila que rompa la FK.
+        // `SqlQuery` (no `SqlQueryRaw`): el Id viaja como parámetro.
+        if (idTipoComida is not null)
+        {
+            var tipoExiste = await db.Database
+                .SqlQuery<int>($"""SELECT "Id" FROM "TipoComida" WHERE "Id" = {idTipoComida.Value} LIMIT 1""")
+                .AnyAsync();
+            if (!tipoExiste) idTipoComida = null;
+        }
+
+        var comida = new RegistroComida(idUsuario, fechaConsumo, nombre, idTipoComida);
         db.RegistrosComida.Add(comida);
         await db.SaveChangesAsync();
 

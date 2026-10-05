@@ -1,91 +1,521 @@
-/* ========== BUTTONS ==========
-   Mono MAYÚSCULAS, tracking amplio, bordes hairline.
-   Primario = relleno negro; hover = invertir. Mecánico, sin glow. */
+/* ========== BUTTONS — Nothing Motion ==========
+   Cinco respuestas físicas al toque (percussive, no fluido):
+   1. PRESS   — baja 3px al pulsar (steps 2)
+   2. FILL    — wipe en 6 pasos (steps 6)
+   3. BRACKETS — [ ] entran al hover (steps 2)
+   4. HOLD    — confirmación por mantener (10 segmentos)
+   5. SEND    — estado inline [ENVIANDO]→[ENVIADO] (sin toast)
 
-.btn-primary {
+   Botones fluidos (ease-out largo, sin rebote):
+   - Magnetic, Liquid, Morph (pill→spinner→check)
+   - Slide-to-confirm, Fluid switch, Segmented control, Volume bars
+
+   Mono MAYÚSCULAS, tracking amplio, bordes hairline.
+   Primario = relleno; hover = invertir. Mecánico, sin glow, sin sombras. */
+
+:root {
+  /* Easing fluido para botones "suaves" */
+  --fl: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ===== BASE BUTTON (común a todas las variantes) ===== */
+.b {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 40px;
-  padding: 0 16px;
-  border: 1px solid var(--nt-ink);
-  border-radius: var(--radius-input);
-  background: var(--nt-ink);
-  color: var(--nt-bg);
-  font: 400 11px/12px var(--nt-font-mono);
+  gap: var(--nd-space-xs);
+  padding: 12px 22px;
+  min-height: 44px;
+  border: 1px solid var(--nd-text-display);
+  border-bottom-width: 4px;
+  border-radius: var(--nd-radius-pill);
+  background: transparent;
+  color: var(--nd-text-display);
+  font: 400 12px/1 var(--nd-font-mono);
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   cursor: pointer;
-  transition: background var(--nt-t-fast) var(--nt-ease),
-    color var(--nt-t-fast) var(--nt-ease),
-    transform var(--nt-t-fast) var(--nt-ease);
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 0.08s steps(2),
+    border-bottom-width 0.08s steps(2);
 }
 
-.btn-primary:hover {
+.b:focus-visible {
+  outline: 2px solid var(--nd-accent);
+  outline-offset: 3px;
+}
+
+/* ===== 1. PRESS — Tecla: baja 3px al pulsar (steps 2) ===== */
+.b1 {
+  /* Hereda .b */
+}
+
+.b1:active {
+  transform: translateY(3px);
+  border-bottom-width: 1px;
+}
+
+/* ===== 2. FILL — Wipe en 6 pasos (steps 6) ===== */
+.b2 {
+  border-radius: 4px;
+  border-bottom-width: 1px;
+  z-index: 0;
+}
+
+.b2::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--nd-text-display);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s steps(6);
+  z-index: -1;
+}
+
+.b2:hover {
+  color: var(--nd-black);
+}
+
+.b2:hover::before {
+  transform: scaleX(1);
+}
+
+.b2:active {
+  transform: scale(0.98);
+}
+
+/* ===== 3. BRACKETS — [ ] entran al hover (steps 2) ===== */
+.b3 {
+  border-color: transparent;
+  border-bottom-width: 1px;
+  padding: 12px 30px;
+}
+
+.b3::before,
+.b3::after {
+  position: absolute;
+  top: 50%;
+  margin-top: -9px;
+  opacity: 0;
+  transition:
+    transform 0.2s var(--nd-ease),
+    opacity 0.2s steps(2);
+}
+
+.b3::before {
+  content: "[";
+  left: 6px;
+  transform: translateX(8px);
+}
+
+.b3::after {
+  content: "]";
+  right: 6px;
+  transform: translateX(-8px);
+}
+
+.b3:hover::before,
+.b3:hover::after {
+  opacity: 1;
+  transform: none;
+}
+
+/* ===== 4. HOLD — Confirmación por mantener (10 segmentos) ===== */
+.b4 {
+  border-radius: 4px;
+  min-width: 170px;
+  border-bottom-width: 1px;
+  touch-action: none;
+  user-select: none;
+}
+
+.b4 .seg {
+  display: flex;
+  gap: 3px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.b4 .seg i {
+  width: 8px;
+  height: 14px;
+  background: var(--nd-border-visible);
+  display: block;
+}
+
+.b4 .seg i.on {
+  background: var(--nd-text-display);
+}
+
+/* ===== 5. SEND — Estado inline [ENVIANDO]→[ENVIADO] ===== */
+.b5 {
+  border-radius: 4px;
+  border-bottom-width: 1px;
+  min-width: 150px;
+}
+
+.b5:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== FLUID BUTTONS (ease-out largo, sin rebote) ===== */
+/* Estos SÍ usan transiciones fluidas para sentirse "premium" */
+
+/* Magnetic — sigue al cursor */
+.mag {
+  transition: transform 0.6s var(--fl);
+}
+
+/* Liquid — rellena desde punto de entrada */
+.liq {
+  position: relative;
+  z-index: 0;
+  transition: color 0.4s var(--fl);
+}
+
+.liq::before {
+  content: "";
+  position: absolute;
+  left: var(--px, 50%);
+  top: var(--py, 50%);
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: var(--nd-text-display);
+  transform: translate(-50%, -50%);
+  transition: width 0.7s var(--fl), height 0.7s var(--fl);
+  z-index: -1;
+}
+
+.liq:hover {
+  color: var(--nd-black);
+}
+
+.liq:hover::before {
+  width: 420px;
+  height: 420px;
+}
+
+/* Morph — Pastilla → Spinner → Check */
+.mph {
+  position: relative;
+  width: 140px;
+  height: 46px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--nd-text-display);
+  border-radius: var(--nd-radius-pill);
+  border-bottom-width: 1px;
   background: transparent;
-  color: var(--nt-ink);
+  color: var(--nd-text-display);
+  font: 400 12px/1 var(--nd-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition:
+    width 0.6s var(--fl),
+    background 0.4s var(--fl),
+    color 0.4s var(--fl);
+  overflow: hidden;
 }
 
-.btn-primary:active {
-  transform: translateY(1px);
+.mph.l { width: 46px; }
+.mph.d { width: 46px; background: var(--nd-text-display); color: var(--nd-black); }
+
+.mph .tx { transition: opacity 0.2s; }
+.mph.l .tx,
+.mph.d .tx { opacity: 0; }
+
+.mph .rg {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--nd-border-visible);
+  border-top-color: var(--nd-text-display);
+  border-radius: 50%;
+  opacity: 0;
+  animation: rot 0.8s linear infinite;
+  transition: opacity 0.3s;
 }
 
-.btn-primary:disabled {
-  opacity: 0.35;
-  cursor: default;
+.mph.l .rg { opacity: 1; }
+
+@keyframes rot { to { transform: rotate(360deg); } }
+
+.mph .ck {
+  position: absolute;
 }
 
-.btn-primary--block {
+.mph .ck path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition: stroke-dashoffset 0.5s var(--fl) 0.25s;
+}
+
+.mph.d .ck path {
+  stroke-dashoffset: 0;
+}
+
+/* ===== SLIDE TO CONFIRM ===== */
+.sl {
+  position: relative;
+  width: 220px;
+  height: 46px;
+  border: 1px solid var(--nd-text-display);
+  border-radius: var(--nd-radius-pill);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+
+.sl .f {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 22px;
+  background: var(--nd-text-display);
+  transition: width 0.6s var(--fl);
+}
+
+.sl .k {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--nd-black);
+  border: 1px solid var(--nd-text-display);
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  font: 400 14px/1 var(--nd-font-mono);
+  transition:
+    transform 0.6s var(--fl),
+    width 0.6s var(--fl);
+}
+
+.sl .lb {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding-left: 30px;
+  color: var(--nd-text-display);
+  mix-blend-mode: difference;
+  pointer-events: none;
+  font: 400 11px/1 var(--nd-font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ===== FLUID SWITCH (perilla que se estira) ===== */
+.ft {
+  width: 68px;
+  height: 34px;
+  border: 1px solid var(--nd-text-display);
+  border-radius: var(--nd-radius-pill);
+  background: transparent;
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.5s var(--fl);
+}
+
+.ft::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--nd-radius-pill);
+  background: var(--nd-text-display);
+  transition:
+    transform 0.55s var(--fl),
+    width 0.3s var(--fl),
+    background 0.5s var(--fl);
+}
+
+.ft:active::after {
+  width: 32px;
+}
+
+.ft[aria-checked="true"] {
+  background: var(--nd-text-display);
+}
+
+.ft[aria-checked="true"]::after {
+  transform: translateX(34px);
+  background: var(--nd-black);
+}
+
+.ft[aria-checked="true"]:active::after {
+  transform: translateX(26px);
+}
+
+.ft:focus-visible {
+  outline: 2px solid var(--nd-accent);
+  outline-offset: 3px;
+}
+
+/* ===== SEGMENTED CONTROL (3 opciones) ===== */
+.sg {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--nd-text-display);
+  border-radius: var(--nd-radius-pill);
   width: 100%;
+  max-width: 240px;
+  padding: 3px;
 }
 
-.btn-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-input);
-  display: grid;
-  place-items: center;
-  color: var(--nt-ink);
-  background: transparent;
-  border: 1px solid transparent;
+.sg .tm {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / 3);
+  background: var(--nd-text-display);
+  border-radius: var(--nd-radius-pill);
+  transform: translateX(calc(var(--i) * 100%));
+  transition: transform 0.6s var(--fl);
+}
+
+.sg button {
+  position: relative;
+  background: none;
+  border: 0;
+  font: 400 11px/1 var(--nd-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--nd-text-display);
+  padding: 9px 0;
   cursor: pointer;
-  transition: border-color var(--nt-t-fast) var(--nt-ease),
-    background var(--nt-t-fast) var(--nt-ease);
+  transition: color 0.3s var(--fl);
 }
 
-.btn-icon:hover {
-  border-color: var(--nt-line-strong);
+.sg button.a {
+  color: var(--nd-black);
 }
 
-/* Enviar: cuadrado con borde. El círculo azul+glow era Aurenix. */
+/* ===== VOLUME BARS ===== */
+.vol {
+  display: flex;
+  gap: 3px;
+  align-items: flex-end;
+  height: 40px;
+  touch-action: none;
+  cursor: pointer;
+}
+
+.vol i {
+  width: 6px;
+  height: var(--h);
+  background: var(--nd-border-visible);
+  transform-origin: bottom;
+  transform: scaleY(var(--s, 1));
+  transition:
+    background 0.3s var(--fl),
+    transform 0.4s var(--fl);
+}
+
+.vol i.on {
+  background: var(--nd-text-display);
+}
+
+/* ===== SEND BUTTON (para composer chat) ===== */
 .send-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-input);
-  border: 1px solid var(--nt-ink);
   display: grid;
   place-items: center;
-  background: var(--nt-ink);
-  color: var(--nt-bg);
-  cursor: pointer;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
-  transition: background var(--nt-t-fast) var(--nt-ease),
-    color var(--nt-t-fast) var(--nt-ease);
+  border-radius: 50%;
+  border: 0;
+  background: var(--nd-text-display);
+  color: var(--nd-black);
+  cursor: pointer;
+  transition:
+    background var(--nd-t-micro) var(--nd-ease),
+    color var(--nd-t-micro) var(--nd-ease),
+    transform var(--nd-t-micro) var(--nd-ease);
 }
 
 .send-btn:hover:not(:disabled) {
-  background: transparent;
-  color: var(--nt-ink);
+  background: var(--nd-surface-raised);
+  color: var(--nd-text-primary);
+  transform: scale(0.96);
+}
+
+.send-btn:active:not(:disabled) {
+  transform: scale(0.92);
 }
 
 .send-btn:disabled {
-  opacity: 0.35;
+  background: var(--nd-surface-raised);
+  color: var(--nd-text-disabled);
   cursor: default;
 }
 
-/* Rojo: uso excepcional (peligro, borrar). Un punto por pantalla. */
-.btn-ghost--danger {
-  border-color: var(--nt-red);
-  color: var(--nt-red);
+.send-btn:focus-visible {
+  outline: 2px solid var(--nd-text-display);
+  outline-offset: 2px;
+}
+
+/* Estado "grabando" (futuro voice input) */
+.send-btn.recording {
+  background: var(--nd-accent);
+  color: var(--nd-text-display);
+  animation: recording-pulse 1.5s var(--nd-ease) infinite;
+}
+
+@keyframes recording-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--nd-accent); }
+  50% { box-shadow: 0 0 0 8px transparent; }
+}
+
+/* ===== BTN ICON (para topbar, composer +, etc.) ===== */
+.btn-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: transparent;
+  border: 0;
+  color: var(--nd-text-secondary);
+  cursor: pointer;
+  transition:
+    color var(--nd-t-micro) var(--nd-ease),
+    background var(--nd-t-micro) var(--nd-ease);
+}
+
+.btn-icon:hover {
+  color: var(--nd-text-display);
+  background: var(--nd-glass);
+}
+
+.btn-icon:focus-visible {
+  outline: 2px solid var(--nd-text-display);
+  outline-offset: 2px;
+}
+
+/* ===== REDUCED MOTION ===== */
+@media (prefers-reduced-motion: reduce) {
+  .b, .b2::before, .b3::before, .b3::after,
+  .b4 .seg i, .mph .rg, .ft::after,
+  .sl .k, .sl .f, .sl .lb,
+  .sg .tm, .sg button,
+  .vol i, .send-btn {
+    transition: none !important;
+    animation: none !important;
+  }
 }

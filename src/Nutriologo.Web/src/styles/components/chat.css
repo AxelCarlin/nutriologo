@@ -1,270 +1,481 @@
-/* ========== CHAT (topbar, estado vacío, mensajes) ==========
-   Un solo eje: todo el contenido vive en --chat-w (720px).
-   El topbar usa la MISMA caja, no el ancho completo del content area.
-   Agente = sin burbuja + etiqueta mono. Usuario = píldora #1A1A1A. */
+/* ═══════════════════════════════════════════════════════════════
+   NOTHING CHAT — estructura, indicador 5×5, hilo y mensajes
+   ═══════════════════════════════════════════════════════════════
+   Reglas que este archivo respeta y no debe perder:
+   · El asistente es TEXTO PLANO: sin caja, sin fondo, sin min-height.
+   · La ÚNICA caja es la burbuja del usuario.
+   · Rojo = solo interrupción (error, X del indicador, línea [ERROR]).
+   · Movimiento fluido (--fl) para entradas; seco (steps) para parpadeos.
+   · Una sola columna: encabezado, hilo y composer comparten `.col`,
+     así el compositor no puede desalinearse del contenido.
+   ═══════════════════════════════════════════════════════════════ */
 
-.chat-screen {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100svh - var(--nt-header-h));
-  background: var(--nt-bg);
+.chat {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--t1);
+  font-family: var(--nd-font-sans);
+  font-weight: 300;
 }
 
-/* --- TOPBAR: 48px, sin caja, solo hairline --- */
-.topbar {
-  display: flex;
-  align-items: center;
-  height: 48px;
-  padding: 0 var(--space-md);
-  border-bottom: 1px solid var(--nt-line);
-  background: var(--nt-bg);
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-/* Mismo eje que el composer y el orbe. Antes ocupaba todo el ancho
-   (x=304..1806) mientras el input medía 608: tres ejes distintos. */
-.topbar__inner {
+/* ── Columna compartida: mismo ancho y mismo padding en las tres zonas ── */
+.col {
   width: 100%;
-  max-width: var(--chat-w);
-  margin: 0 auto;
+  max-width: var(--nd-chat-w);
+  margin-inline: auto;
+  padding-inline: 24px;
+}
+
+/* ═══════════════════ ENCABEZADO ═══════════════════ */
+
+.chat__cabecera {
+  border-bottom: 1px solid var(--bd);
+  background: var(--bg);
+  padding-block: 14px;
+}
+
+.chat__cabecera-int {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-sm);
+  gap: 16px;
 }
 
-.topbar__acciones {
-  display: flex;
-  align-items: center;
-  gap: var(--space-sm);
-}
-
-/* Indicador de LLM: punto + modelo. Rojo SOLO si no responde. */
-.llm {
+/* Indicador + etiqueta: una sola fuente de verdad del estado. */
+.estado {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font: 400 11px/12px var(--nt-font-mono);
-  text-transform: uppercase;
+  gap: 12px;
+  min-height: 26px;
+}
+
+.estado__etiqueta {
+  font-family: var(--nd-font-mono);
+  font-size: 11px;
   letter-spacing: 0.08em;
-  color: var(--nt-ink-2);
+  text-transform: uppercase;
+  color: var(--t2);
+  /* steps: el texto del estado cambia de golpe, sin difuminarse */
+  transition: color var(--d1) steps(1);
 }
 
-.llm__dot {
-  width: 6px;
-  height: 6px;
+.chat[data-estado='error'] .estado__etiqueta { color: var(--red); }
+.chat[data-estado='detenido'] .estado__etiqueta { color: var(--t3); }
+
+/* ── Rejilla 5×5: 25 puntos de 6px, separación 4px ── */
+.dotmatrix {
+  display: grid;
+  grid-template-columns: repeat(5, var(--dot-size));
+  grid-auto-rows: var(--dot-size);
+  gap: var(--dot-gap);
+  flex: 0 0 auto;
+}
+
+.dotmatrix__punto {
+  width: var(--dot-size);
+  height: var(--dot-size);
   border-radius: 50%;
-  background: var(--nt-ink-2);
+  background: var(--bd2);
+  /* seco: el cambio de estado del punto es instantáneo */
+  transition: background 0.08s steps(1);
 }
 
-.llm--down {
-  color: var(--nt-red);
+.dotmatrix__punto--on { background: var(--t1); }
+
+/* La X de error es el único rojo del indicador. */
+.chat[data-estado='error'] .dotmatrix__punto--on { background: var(--red); }
+
+/* prefers-reduced-motion: sin animación continua. El patrón se congela
+   (no se crea el intervalo en useDotMatrix). */
+@media (prefers-reduced-motion: reduce) {
+  .dotmatrix__punto { transition: none; }
+  .msg { animation: none !important; }
 }
 
-.llm--down .llm__dot {
-  background: var(--nt-red);
+/* ═══════════════════ HILO ═══════════════════ */
+
+.chat__hilo {
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-block: 20px 8px;
+  /* Barra del sistema, delgada y con los tokens: la del navegador por defecto
+     es un bloque gris que rompe el eje oscuro. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--bd2) transparent;
+  /* `stable` reserve un carril de ~15px que desplaza el texto respecto del
+     encabezado y del composer (767 contra 773). Se usa `auto` para que el
+     ancho del contenido sea idéntico al de las otras dos zonas. */
+  scrollbar-gutter: auto;
 }
 
-/* --- ESTADO VACÍO: orbe centrado verticalmente --- */
+.chat__hilo::-webkit-scrollbar { width: 8px; }
+.chat__hilo::-webkit-scrollbar-track { background: transparent; }
+.chat__hilo::-webkit-scrollbar-thumb {
+  background: var(--bd2);
+  border-radius: var(--nd-radius-pill);
+}
+.chat__hilo::-webkit-scrollbar-thumb:hover { background: var(--t3); }
+
+.hilo {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* ── Estado vacío ── */
 .vacio {
-  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-lg);
-  width: 100%;
-  max-width: var(--chat-w);
-  margin: 0 auto;
-  padding: var(--space-lg) var(--space-md);
-}
-
-.vacio__orbe {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-md);
+  gap: 10px;
+  padding-block: 12vh 0;
 }
 
 .vacio__titulo {
-  font: 400 clamp(28px, 5vw, 44px) / 1.05 var(--nt-font-dot);
-  text-transform: lowercase;
-  text-align: center;
+  margin: 0;
+  font-size: var(--nd-heading);
+  font-weight: 300;
+  line-height: 1.2;
+  color: var(--t1);
+}
+
+.vacio__sub {
+  margin: 0;
+  font-size: var(--nd-body-sm);
+  color: var(--t3);
 }
 
 .chips {
   display: flex;
-  gap: 8px;
   flex-wrap: wrap;
-  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
 }
 
-/* Sugerencias como .nt-tag: recuadro hairline, no píldora rellena. */
 .chip {
-  height: 32px;
-  padding: 0 14px;
-  border: 1px solid var(--nt-line-strong);
-  border-radius: var(--radius-input);
-  background: transparent;
-  color: var(--nt-ink);
-  font: 400 11px/1 var(--nt-font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  transition: border-color var(--nt-t-fast) var(--nt-ease),
-    background var(--nt-t-fast) var(--nt-ease);
-}
-
-.chip:hover {
-  border-color: var(--nt-ink);
-  background: var(--nt-glass);
-}
-
-/* --- CONVERSACIÓN --- */
-.conversa {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  width: 100%;
-  max-width: var(--chat-w);
-  margin: 0 auto;
-  padding: 0 var(--space-md);
-}
-
-.conversa__avatar {
-  padding: var(--space-md) 0;
-}
-
-.chat-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: var(--space-lg);
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  scrollbar-width: none;
-}
-
-.chat-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-/* Agente: SIN burbuja. Texto sobre fondo, etiqueta mono arriba.
-   Es lo que hace Nothing: la voz del asistente no compite con la del usuario. */
-.msg--agent {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  max-width: 100%;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  font: 400 16px/1.55 var(--nt-font-sans);
-  color: var(--nt-ink);
-}
-
-.msg__meta {
-  color: var(--nt-ink-3);
+  font-family: var(--nd-font-mono);
   font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t2);
+  background: transparent;
+  border: 1px solid var(--bd);
+  border-radius: var(--nd-radius-pill);
+  padding: 7px 12px;
+  cursor: pointer;
+  transition: color var(--d1) var(--fl), border-color var(--d1) var(--fl), opacity var(--d1) steps(1);
 }
 
-/* Usuario: píldora rellena, alineada a la derecha. */
-.msg--user {
-  align-self: flex-end;
-  max-width: 78%;
-  padding: 10px 14px;
-  border-radius: var(--radius-bubble);
-  background: var(--nt-surface-2);
-  border: 0;
-  font: 400 15px/1.45 var(--nt-font-sans);
-  color: var(--nt-ink);
+/* El hover solo en dispositivos que realmente tienen puntero. */
+@media (hover: hover) {
+  .chip:hover:not(:disabled) {
+    color: var(--t1);
+    border-color: var(--bd2);
+  }
 }
 
-.msg-actions {
+.chip:disabled {
+  /* 0.4 los volvía invisibles. 0.55 los deja claramente inactivos sin
+     desaparecer: el usuario tiene que ver que la opción sigue ahí. */
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ═══════════════════ MENSAJES ═══════════════════ */
+
+.msg {
+  /* fluido: entrada con opacidad + desplazamiento, sin rebote */
+  animation: msg-entra var(--d2) var(--fl) both;
+}
+
+@keyframes msg-entra {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.msg__firma {
+  margin: 0 0 6px;
+  font-family: var(--nd-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  /* Gris terciario: el punto/sigilo junto al nombre NUNCA es rojo. */
+  color: var(--t3);
+}
+
+.msg__falla {
+  color: var(--t2);
+}
+
+/* ── AGENTE: texto plano ── */
+.msg--agent { max-width: 100%; }
+
+.msg__texto {
+  margin: 0;
+  padding: 2px 0;          /* sin caja: solo respiro vertical */
+  height: auto;             /* nunca min-height: nada de hueco vacío */
+  min-height: 0;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--t1);
+  /* Ya no hay `pre-wrap`: el texto pasa por MdTexto, que produce un nodo por
+     párrafo. Con pre-wrap los saltos del markdown se duplicaban (línea en
+     blanco en el origen + <p> + espacio entre bloques). */
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.msg__texto--espera {
+  color: var(--t3);
+  font-family: var(--nd-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+/* Cursor de bloque: seco (steps), no un blink suave. */
+.cursor {
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--t2);
+  animation: cursor-parpadeo 1s steps(1) infinite;
+}
+
+@keyframes cursor-parpadeo {
+  0%, 49%   { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* ── USUARIO: la única caja ── */
+.msg--user { display: flex; justify-content: flex-end; }
+
+.msg__burbuja {
+  margin: 0;
+  max-width: min(86%, 560px);
+  border: 1px solid var(--bd2);
+  border-radius: 16px 16px 4px 16px;
+  padding: 10px 16px;
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.55;
+  color: var(--t1);
+  overflow-wrap: anywhere;
+}
+
+/* ═══════════════════ PASOS REALES ═══════════════════
+   Viven dentro del mensaje del asistente. Si el turno no usó ninguna
+   herramienta/fase, no hay <details> y no se muestra nada. */
+
+.pasos { margin: 0 0 8px; }
+
+.pasos__resumen {
+  font-family: var(--nd-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t3);
+  cursor: pointer;
+  list-style: none;
+}
+
+.pasos__resumen::-webkit-details-marker { display: none; }
+
+.pasos__resumen::before { content: '▸ '; }
+.pasos[open] > .pasos__resumen::before { content: '▾ '; }
+
+.pasos__lista {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.paso {
   display: flex;
   align-items: center;
-  gap: 4px;
-  color: var(--nt-ink-3);
+  gap: 8px;
+  font-family: var(--nd-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--t3);
 }
 
-.msg-actions button {
-  background: none;
-  border: 0;
-  color: inherit;
-  font: 400 11px/12px var(--nt-font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-  padding: 6px 8px;
-  border-radius: var(--radius-input);
-  display: inline-flex;
+.paso__marca {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--bd2);
+}
+
+.paso__nombre { color: var(--t2); }
+
+.paso[data-estado='corriendo'] .paso__marca {
+  background: var(--t1);
+  animation: cursor-parpadeo 0.9s steps(1) infinite;
+}
+
+.paso[data-estado='hecho'] .paso__marca { background: var(--t2); }
+.paso[data-estado='fallo'] .paso__marca { background: var(--red); }
+.paso[data-estado='fallo'] .paso__nombre { color: var(--red); }
+
+.paso__estado, .paso__ms { color: var(--t3); }
+.paso__ms { margin-left: auto; }
+
+/* ═══════════════════ META Y ACCIONES ═══════════════════ */
+
+.msg__pie {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+  margin-top: 10px;
 }
 
-.msg-actions button:hover {
-  color: var(--nt-ink);
-  background: var(--nt-glass);
-}
-
-.msg-status {
-  font: 400 11px/1.4 var(--nt-font-mono);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--nt-ink-2);
-  align-self: flex-start;
-}
-
-.msg-status--error {
-  color: var(--nt-red);
-}
-
-.msg-status--ok {
-  color: var(--nt-ok);
-}
-
-.msg-status--warning {
-  color: var(--nt-warn);
-}
-
-/* Escribiendo: puntos que se encienden en secuencia. */
-.thinking-dots::after {
-  content: '⋯';
-  animation: thinking-blink 1.2s steps(1) infinite;
-}
-
-@keyframes thinking-blink {
-  0%,
-  100% {
-    color: var(--nt-ink-3);
-  }
-  33% {
-    color: var(--nt-ink);
-  }
-}
-
-/* Indicador sutil de fallback (modelo no disponible, respuesta hardcoded) */
-.msg-fallback {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 8px;
-  padding: 2px 6px;
-  font: 400 9px/1 var(--nt-font-mono);
-  text-transform: uppercase;
+.msg__meta-linea {
+  font-family: var(--nd-font-mono);
+  font-size: 10px;
   letter-spacing: 0.08em;
-  color: var(--nt-warn);
-  background: rgba(232, 163, 23, 0.12);
-  border: 1px solid var(--nt-warn);
-  border-radius: var(--radius-input);
-  opacity: 0.8;
+  color: var(--t3);
 }
 
-.msg--agent:hover .msg-fallback {
-  opacity: 1;
+.msg__acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* Botón fantasma: borde fino, mono, mayúsculas, píldora. */
+.fantasma {
+  font-family: var(--nd-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t2);
+  background: transparent;
+  border: 1px solid var(--bd2);
+  border-radius: var(--nd-radius-pill);
+  padding: 5px 11px;
+  cursor: pointer;
+  transition: color var(--d1) var(--fl), border-color var(--d1) var(--fl);
+}
+
+@media (hover: hover) {
+  .fantasma:hover { color: var(--t1); border-color: var(--t3); }
+}
+
+.fantasma[aria-pressed='true'] {
+  color: var(--t1);
+  border-color: var(--t3);
+}
+
+/* ═══════════════════ REDIRECCIÓN ═══════════════════ */
+
+/* El chat no guarda: el botón lleva a la vista donde el usuario sí guarda. */
+.msg__redirige {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 0;
+}
+
+.redirige {
+  font-family: var(--nd-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--bg);
+  background: var(--t1);
+  border: 1px solid var(--t1);
+  border-radius: var(--nd-radius-pill);
+  padding: 6px 13px;
+  cursor: pointer;
+  transition: background var(--d1) var(--fl), color var(--d1) var(--fl);
+}
+
+@media (hover: hover) {
+  .redirige:hover { background: var(--t2); border-color: var(--t2); }
+}
+
+.redirige:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Lo que se lleva: los datos reales, para que se vea qué va a guardar. */
+.redirige__detalle {
+  font-family: var(--nd-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--t3);
+}
+
+/* ═══════════════════ ERROR ═══════════════════ */
+
+.msg__error {
+  margin: 8px 0 0;
+  font-family: var(--nd-font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--red);
+}
+
+/* La sacudida de error es seca (steps), nunca un rebote. */
+.msg--viva:has(.msg__error) .msg__texto {
+  animation: sacudida 0.22s steps(2) 2;
+}
+
+@keyframes sacudida {
+  0%   { transform: translateX(0); }
+  50%  { transform: translateX(-3px); }
+  100% { transform: translateX(0); }
+}
+
+/* ═══════════════════ IR ABAJO ═══════════════════ */
+
+/* Sticky dentro del hilo se superponía al texto de la última burbuja y lo
+   cortaba. Va FIJO respecto de la ventana, en su propia capa, con fondo propio:
+   nunca puede pisar el contenido porque el hilo le reserva el carril. */
+.bajar {
+  position: fixed;
+  right: max(24px, calc(50vw - var(--nd-chat-w) / 2));
+  bottom: calc(18px + var(--safe-bottom));
+  z-index: 2;
+  font-family: var(--nd-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--t1);
+  background: var(--sf);
+  border: 1px solid var(--bd2);
+  border-radius: var(--nd-radius-pill);
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: color var(--d1) var(--fl), border-color var(--d1) var(--fl);
+}
+
+@media (hover: hover) {
+  .bajar:hover { border-color: var(--t3); }
+}
+
+/* ═══════════════════ FOCO ═══════════════════ */
+
+.chat :focus-visible {
+  outline: 2px solid var(--t1);  /* blanco: el rojo es de error */
+  outline-offset: 2px;
+}
+
+/* ═══════════════════ MÓVIL ═══════════════════ */
+
+@media (max-width: 640px) {
+  .col { padding-inline: 16px; }
+  .msg__burbuja { max-width: 92%; }
+  .vacio { padding-block: 8vh 0; }
 }

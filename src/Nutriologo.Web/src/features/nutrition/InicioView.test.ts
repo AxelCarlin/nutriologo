@@ -125,4 +125,37 @@ describe('InicioView', () => {
     // --nt-ink-2 (~#A8A8A8), no --nt-ink-3 (~#666).
     expect(color).not.toBe('rgb(102, 102, 102)')
   })
+
+  it('el tipo no se repite cuando ya es el nombre', async () => {
+    // El formulario guarda el nombre del tipo en `nombre` y el Id en
+    // `IdTipoComida`, así que `tipo` y `nombre` dicen lo mismo. Mostrar los
+    // dos pintaba "Desayuno · Desayuno" en cada fila.
+    mockFetch({
+      ...PANEL,
+      comidas: [
+        { id: 1, nombre: 'Desayuno', caloriasEstimadas: 295, tipo: 'Desayuno', hora: '2026-10-05T13:00:00' },
+        { id: 2, nombre: 'Cena', caloriasEstimadas: 500, tipo: 'Cena', hora: '2026-10-05T20:00:00' },
+      ],
+    })
+    const w = await montar()
+
+    // Ningún .label de tipo: los dos coinciden con su nombre.
+    expect(w.findAll('.rows__cuerpo .label')).toHaveLength(0)
+  })
+
+  it('el tipo SÍ se muestra cuando aporta algo distinto', async () => {
+    // Nombre libre ("K smoke") + tipo del catálogo ("Desayuno"): ahí el tipo
+    // es información y tiene que verse.
+    mockFetch({
+      ...PANEL,
+      comidas: [
+        { id: 1, nombre: 'K smoke', caloriasEstimadas: 260, tipo: 'Desayuno', hora: '2026-10-05T13:00:00' },
+      ],
+    })
+    const w = await montar()
+
+    const labels = w.findAll('.rows__cuerpo .label')
+    expect(labels).toHaveLength(1)
+    expect(labels[0]!.text()).toBe('Desayuno')
+  })
 })

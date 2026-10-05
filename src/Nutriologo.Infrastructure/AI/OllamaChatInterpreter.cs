@@ -5,6 +5,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Nutriologo.Application.Abstractions.AI;
 using Nutriologo.Application.AI;
 
@@ -12,11 +13,13 @@ public class OllamaChatInterpreter : IChatInterpreter
 {
     private readonly HttpClient _http;
     private readonly string _model;
+    private readonly ILogger<OllamaChatInterpreter>? _log;
 
-    public OllamaChatInterpreter(HttpClient http, string model)
+    public OllamaChatInterpreter(HttpClient http, string model, ILogger<OllamaChatInterpreter>? log = null)
     {
         _http = http;
         _model = model;
+        _log = log;
     }
 
     public const string SystemPrompt =
@@ -135,17 +138,44 @@ public async Task<AiResult<ChatInterpretation>> InterpretAsync(ChatRequest reque
         // Endpoint de Ollama. Este cliente habla CON ollama, no contra sí mismo:
         // /api/conversacion/mensaje es del backend y devolvía 404 → EnsureSuccess
         // lanzaba → ChatEndpoints traducía a 503 "modelo ocupado".
-        using var resp = await _http.PostAsJsonAsync("/api/chat", payload, ct);
-        resp.EnsureSuccessStatusCode();
-        using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
-        var content = doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "";
-        long evalNs = doc.RootElement.TryGetProperty("eval_duration", out var ed) && ed.ValueKind == JsonValueKind.Number
-            ? ed.GetInt64() : 0;
+        try
+        {
+            using var resp = await _http.PostAsJsonAsync("/api/chat", payload, ct);
+            resp.EnsureSuccessStatusCode();
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+            var content = doc.RootElement.GetProperty("message").GetProperty("content").GetString() ?? "";
+            long evalNs = doc.RootElement.TryGetProperty("eval_duration", out var ed) && ed.ValueKind == JsonValueKind.Number
+                ? ed.GetInt64() : 0;
 
-        if (!StructuredOutputValidator.TryParse(content, out var parsed, out var error) || parsed is null)
-            throw new Application.Contracts.AiGuardException($"Salida del modelo inválida: {error}. Raw: {content}");
+            if (!StructuredOutputValidator.TryParse(content, out var parsed, out var error) || parsed is null)
+                throw new Application.Contracts.AiGuardException($"Salida del modelo inválida: {error}. Raw: {content}");
 
-        return new AiResult<ChatInterpretation>(parsed, _model, null,
-            (long)(DateTime.UtcNow - started).TotalMilliseconds, content);
+            return new AiResult<ChatInterpretation>(parsed, _model, null,
+                (long)(DateTime.UtcNow - started).TotalMilliseconds, content);
+        }
+        catch (Exception ex) when (ex is TaskCanceledException || ex is HttpRequestException || ex is JsonException || ex is OperationCanceledException)
+        {
+            // Ollama no disponible → devolver intención Desconocida para que el flujo
+            // continúe y el respondedor conversacional use su fallback
+            _log?.LogWarning(ex, "OllamaChatInterpreter fallback: Ollama no disponible");
+            var desconocida = new ChatInterpretation(
+                AiIntent.Desconocida,
+                Array.Empty<FoodCandidate>(),
+                Array.Empty<string>()
+            );
+            return new AiResult<ChatInterpretation>(desconocida, _model, "Ollama no disponible",
+                (long)(DateTime.UtcNow - started).TotalMilliseconds, "");
+        }
+        catch (Exception ex)
+        {
+            _log?.LogWarning(ex, "OllamaChatInterpreter fallback (otro): {Message}", ex.Message);
+            var desconocida = new ChatInterpretation(
+                AiIntent.Desconocida,
+                Array.Empty<FoodCandidate>(),
+                Array.Empty<string>()
+            );
+            return new AiResult<ChatInterpretation>(desconocida, _model, "Ollama no disponible",
+                (long)(DateTime.UtcNow - started).TotalMilliseconds, "");
+        }
     }
 }

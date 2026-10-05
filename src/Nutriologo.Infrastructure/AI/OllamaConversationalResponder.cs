@@ -33,6 +33,11 @@ Eres el nutriólogo del usuario. Responde en español, tono cercano y profesiona
 
 REGLAS OBLIGATORIAS:
 - NUNCA calcules kcal, macros, riesgos, IMC, TMB, ritmos: usa SOLO los datos que te pasan en ContextoUsuario.
+- NUNCA digas que registraste, guardaste o anotaste algo. NO TENES esa capacidad: no escribís en la base.
+  Si el usuario te pide guardar algo, responde con un texto que Invite a hacerlo él en su pantalla y nombra la vista.
+- Solo hablás de SU información: la del usuario de ContextoUsuario, sus planes
+  alimentarios y los alimentos del catálogo. Jamás menciones datos de otra persona,
+  otros usuarios ni información que no esté en el contexto.
 - Si falta un dato necesario → di DÓNDE está (ej: "Tu objetivo no está definido. Ve a /objetivo para calcularlo").
 - Máximo 3 frases por respuesta. Una pregunta de seguimiento si procede.
 - Usa cifras EXACTAS del contexto: "Llevas {kcal} kcal hoy de {meta} kcal de meta."
@@ -40,12 +45,18 @@ REGLAS OBLIGATORIAS:
 - Si el usuario pregunta fuera de nutrición → redirige amablemente: "Eso no lo puedo responder, pero te ayudo con tu alimentación."
 - Si ContextoUsuario es null o incompleto → usa el fallback provisto por el sistema.
 
+VISTAS DONDE EL USUARIO CARGA SUS DATOS (nombralas cuando le pidas guardar algo):
+/registrar (comidas) · /mediciones (peso y medidas) · /objetivo (meta calórica) · /perfil (datos personales)
+
 EJEMPLOS (placeholders, NO números reales):
 Usuario: "¿Cómo voy hoy?"
-Asistente: "Llevas {kcal} kcal de {meta} kcal hoy. Has comido {n_comidas} veces ({lista_comidas}). Tu meta es {tipo_objetivo} a {ritmo} kg/sem. ¿Registramos la cena?"
+Asistente: "Llevas {kcal} kcal de {meta} kcal hoy. Has comido {n_comidas} veces ({lista_comidas}). Tu meta es {tipo_objetivo} a {ritmo} kg/sem. ¿Qué pensás para la cena?"
 
 Usuario: "¿Qué ceno?"
 Asistente: "Te quedan ~{restante} kcal para tu meta. Con tu objetivo de {tipo_objetivo}, prioriza proteína y vegetales. ¿Te apetece {sugerencia}?"
+
+Usuario: "Registré el desayuno" (NO lo hizo: el chat nunca escribe)
+Asistente: "No puedo guardar registros desde acá; esa carga se hace en tu pantalla de registro. Si me decís qué comiste, te armo la lista y la llevás cargada."
 
 Usuario: "¿Cuánto peso?" (sin peso en contexto)
 Asistente: "No tengo tu peso actual. Regístralo en /mediciones o actualiza tu perfil en /perfil."
@@ -126,11 +137,202 @@ Asistente: "¡Hola! ¿En qué te ayudo con tu alimentación hoy?"
 
             return new ConversationalResponse(textoValidado, UsaFallback: false);
         }
-        catch (Exception ex) when (ex is TaskCanceledException || ex is HttpRequestException || ex is JsonException)
+        catch (Exception ex) when (ex is TaskCanceledException || ex is HttpRequestException || ex is JsonException || ex is OperationCanceledException)
         {
             _log?.LogWarning(ex, "OllamaConversationalResponder fallback: {Message}", ex.Message);
             return Fallback(request.Contexto, request.Texto);
         }
+        catch (Exception ex)
+        {
+            // Cualquier otra excepción de red/timeout → fallback (no 500)
+            _log?.LogWarning(ex, "OllamaConversationalResponder fallback (otro): {Message}", ex.Message);
+            return Fallback(request.Contexto, request.Texto);
+        }
+    }
+
+    /// <summary>
+    /// Stream real de Ollama. Los <c>token</c> son tal cual los emite el modelo;
+    /// el cierre trae <c>FinalText</c> ya validado (o el fallback) para que el
+    /// cliente pueda reconciliar. Un corte a mitad no lanza: se reporta y se cae
+    /// al fallback, igual que la ruta sin streaming.
+    /// </summary>
+    public async IAsyncEnumerable<ChatStreamEvent> ResponderStreamAsync(
+        ConversationalRequest request,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var acumulado = new System.Text.StringBuilder();
+        var enumerador = EmitirTokensAsync(request, acumulado, ct).GetAsyncEnumerator(ct);
+        string? fallo = null;
+
+        try
+        {
+            while (true)
+            {
+                ChatStreamEvent? ev = null;
+                var avanzo = false;
+
+                try
+                {
+                    avanzo = await enumerador.MoveNextAsync();
+                    if (avanzo) ev = enumerador.Current;
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    _log?.LogWarning(ex, "Stream del respondedor cortado: {Message}", ex.Message);
+                    fallo = ex.Message;
+                }
+
+                if (avanzo && ev is not null)
+                    yield return ev;
+
+                if (!avanzo || fallo is not null)
+                    break;
+            }
+        }
+        finally
+        {
+            await enumerador.DisposeAsync();
+        }
+
+        if (ct.IsCancellationRequested)
+            yield break;
+
+        // El texto ya salir token a token se re-valida entero: si el modelo
+        // inventó cifras, lo que se transmitió se descarta y manda el fallback.
+        var completo = acumulado.ToString();
+        var validado = fallo is null ? ValidarCifras(completo, request.Contexto) : null;
+
+        if (fallo is not null)
+        {
+            _log?.LogWarning(fallo, "Respondedor en streaming: fallo de transporte, va fallback");
+            var fb = Fallback(request.Contexto, request.Texto);
+            yield return new ChatStreamEvent("done", Fallback: true, FinalText: fb.Texto, Message: fallo);
+            yield break;
+        }
+
+        if (validado is null)
+        {
+            _log?.LogWarning("ValidarCifras falló en streaming: el modelo inventó cifras. Va fallback.");
+            var fb = Fallback(request.Contexto, request.Texto);
+            yield return new ChatStreamEvent("done", Fallback: true, FinalText: fb.Texto);
+            yield break;
+        }
+
+        yield return new ChatStreamEvent("done", Fallback: false, FinalText: validado);
+    }
+
+    /// <summary>
+    /// Enumerador interno: solo emite tokens. Sin <c>catch</c> a propósito,
+    /// porque C# no permite <c>yield</c> dentro de un try con catch; el manejo de
+    /// errores vive en <see cref="ResponderStreamAsync"/>, que envuelve a este.
+    /// </summary>
+    private async IAsyncEnumerable<ChatStreamEvent> EmitirTokensAsync(
+        ConversationalRequest request,
+        System.Text.StringBuilder acumulado,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
+    {
+        var messages = new List<object>
+        {
+            new { role = "system", content = ConversationalSystemPrompt }
+        };
+
+        if (request.Contexto != null)
+            messages.Add(new { role = "system", content = $"CONTEXTO_USUARIO:\n{RenderizarContexto(request.Contexto)}" });
+        else
+            messages.Add(new { role = "system", content = "CONTEXTO_USUARIO: sin datos disponibles. Usa fallback." });
+
+        if (request.Historial is { Count: > 0 })
+            foreach (var t in request.Historial.TakeLast(6))
+                messages.Add(new { role = t.Rol == "assistant" ? "assistant" : "user", content = t.Texto });
+
+        messages.Add(new { role = "user", content = request.Texto });
+
+        var payload = new
+        {
+            model = _model,
+            stream = true,
+            options = new
+            {
+                temperature = 0.7,
+                num_predict = 512,
+                num_ctx = 4096,
+                repeat_penalty = 1.1
+            },
+            messages = messages.ToArray()
+        };
+
+        if (_isDevelopment && _log != null)
+        {
+            try
+            {
+                var json = JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
+                _log.LogInformation("OLLAMA CONVERSATIONAL STREAM PAYLOAD: {Payload}", json);
+            }
+            catch { /* ignore logging errors */ }
+        }
+
+        using var resp = await _http.PostAsJsonAsync("/api/chat", payload, ct);
+        resp.EnsureSuccessStatusCode();
+
+        using var stream = await resp.Content.ReadAsStreamAsync(ct);
+        using var reader = new System.IO.StreamReader(stream);
+
+        while (!ct.IsCancellationRequested)
+        {
+            var line = await reader.ReadLineAsync(ct);
+            if (line == null) break;
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            // El parseo vive fuera del bucle: `yield` no puede estar dentro de
+            // un try con catch (CS1626).
+            var leido = LeerLineaStream(line, out var token);
+            if (leido == LineaStream.Fin) yield break;
+
+            if (leido == LineaStream.Token && token is { Length: > 0 })
+            {
+                acumulado.Append(token);
+                yield return new ChatStreamEvent("token", Text: token);
+            }
+        }
+    }
+
+    private enum LineaStream { Vacia, Token, Fin }
+
+    /// <summary>
+    /// Lee una línea NDJSON de /api/chat. No lanza: una línea corrupta se
+    /// clasifica como <see cref="LineaStream.Vacia"/> y el stream sigue.
+    /// </summary>
+    private static LineaStream LeerLineaStream(string line, out string? token)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(line);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("done", out var doneProp) && doneProp.ValueKind == JsonValueKind.True)
+            {
+                token = null;
+                return LineaStream.Fin;
+            }
+
+            if (root.TryGetProperty("message", out var msg)
+                && msg.TryGetProperty("content", out var contentProp))
+            {
+                token = contentProp.GetString();
+                return LineaStream.Token;
+            }
+        }
+        catch (JsonException)
+        {
+            // Línea corrupta: se ignora, no se aborta el stream.
+        }
+
+        token = null;
+        return LineaStream.Vacia;
     }
 
     private static string RenderizarContexto(ContextoUsuario c)
@@ -143,6 +345,23 @@ Asistente: "¡Hola! ¿En qué te ayudo con tu alimentación hoy?"
             foreach (var cm in c.Hoy.Comidas)
                 sb.AppendLine($"  - {cm.Nombre} {cm.Kcal}kcal {cm.Hora}");
         sb.AppendLine($"PESO: {(c.Peso != null ? $"{c.Peso.UltimoKg:0.#}kg {c.Peso.Fecha} delta={c.Peso.DeltaKg?.ToString("0.#") ?? "n/a"}kg" : "sin peso")}");
+
+        // Planes del usuario: lo que el bot puede analizar. No puede crearlos
+        // ni modificarlos, así que van marcados como solo lectura.
+        if (c.Planes is { Length: > 0 })
+        {
+            foreach (var p in c.Planes)
+            {
+                sb.AppendLine($"PLAN ({p.Estado}, {p.Dias} dias, solo lectura): {p.Nombre}");
+                foreach (var cp in p.Comidas)
+                    sb.AppendLine($"  - {cp.Momento}: {cp.Alimento} {Num(cp.Cantidad)}{cp.Unidad}");
+            }
+        }
+        else
+        {
+            sb.AppendLine("PLAN: sin planes alimentarios.");
+        }
+
         return sb.ToString();
     }
 
@@ -173,6 +392,17 @@ Asistente: "¡Hola! ¿En qué te ayudo con tu alimentación hoy?"
                 permitidos.Add(cm.Kcal);
         if (ctx.Peso?.UltimoKg is { } pw) permitidos.Add((int)Math.Round(pw));
         if (ctx.Peso?.DeltaKg is { } dk) permitidos.Add((int)Math.Round(Math.Abs(dk)));
+
+        // Planes: cantidades y días del plan son cifras reales del contexto.
+        // Sin esto, responder "tu plan tiene 150g de arroz" caería en fallback
+        // por un número que SÍ está medido.
+        if (ctx.Planes is { Length: > 0 })
+            foreach (var p in ctx.Planes)
+            {
+                if (p.Dias > 0) permitidos.Add(p.Dias);
+                foreach (var cp in p.Comidas)
+                    permitidos.Add((int)Math.Round(cp.Cantidad));
+            }
 
         // Enteros pequeños permitidos sin validar (artículos, cantidades típicas, porcentajes redondeados)
         for (int i = 1; i <= 20; i++) permitidos.Add(i);
@@ -244,31 +474,130 @@ Asistente: "¡Hola! ¿En qué te ayudo con tu alimentación hoy?"
     }
     // ---------- FIN VALIDACIÓN ----------
 
+    /// <summary>
+    /// Formatea un número a la española sin depender de la cultura del
+    /// contenedor: miles con punto, decimales con coma.
+    /// Antes usaba "N0" con la cultura del proceso, y 4035 kcal salían como
+    /// "4,035", que se lee como cuatro mil treinta y cinco coma cero.
+    /// </summary>
+    private static string Num(decimal v, int decimales = 0)
+    {
+        var negativo = v < 0;
+        var abs = Math.Abs(v);
+        var entero = (long)Math.Floor(abs);
+        var frac = abs - entero;
+
+        var miles = entero.ToString(CultureInfo.InvariantCulture);
+        var salida = string.Empty;
+        while (miles.Length > 3)
+        {
+            salida = "." + miles[^3..] + salida;
+            miles = miles[..^3];
+        }
+        salida = miles + salida;
+
+        if (decimales > 0)
+        {
+            var d = frac.ToString("F" + decimales, CultureInfo.InvariantCulture)[2..];
+            salida += "," + d;
+        }
+
+        return (negativo ? "-" : "") + salida;
+    }
+
+    /// <summary>
+    /// Respuesta de respaldo cuando el modelo no está disponible o inventó cifras.
+    /// Regla: solo afirma lo que está medido en el contexto, y lo dice sin rodeos.
+    /// Antes devolvía siempre "¿Qué te gustaría registrar o consultar?", que no
+    /// respondía nada: el usuario veía la misma frase para cualquier pregunta.
+    /// </summary>
     private static ConversationalResponse Fallback(ContextoUsuario? ctx, string userText)
     {
-        var t = userText.ToLowerInvariant();
+        var t = userText.ToLowerInvariant().Trim();
 
-        if (t.Contains("calor") || t.Contains("cómo voy") || t.Contains("balance"))
+        // Saludos y despedidas: no necesitan datos.
+        if (EsSaludo(t))
+            return new ConversationalResponse("Hola. Contame qué comiste o qué querés consultar.", UsaFallback: true);
+        if (EsDespedida(t))
+            return new ConversationalResponse("Hasta luego.", UsaFallback: true);
+
+        var peso = ctx?.Peso;
+        var objetivo = ctx?.Objetivo;
+        var hoy = ctx?.Hoy;
+
+        // Peso.
+        if (t.Contains("peso") || t.Contains("cuánto pes") || t.Contains("cuanto pes"))
         {
-            var kcal = ctx?.Hoy?.KcalConsumidas ?? 0;
-            var meta = ctx?.Hoy?.MetaKcal;
-            var txt = kcal > 0
-                ? meta.HasValue
-                    ? $"Llevas {kcal:N0} kcal de {meta.Value:N0} kcal hoy."
-                    : $"Llevas {kcal:N0} kcal registradas hoy (sin meta definida)."
-                : "Aún no tienes comidas registradas hoy.";
-            return new ConversationalResponse(txt, UsaFallback: true);
+            if (peso == null)
+                return new ConversationalResponse("No tengo mediciones de tu peso todavía. Registralas en Mediciones.", UsaFallback: true);
+            var delta = peso.DeltaKg is null
+                ? "no tengo una medición anterior para comparar."
+                : $"{(peso.DeltaKg.Value >= 0 ? "+" : "")}{Num(peso.DeltaKg.Value, 1)} kg respecto de la anterior.";
+            return new ConversationalResponse($"Tu último peso es {Num(peso.UltimoKg, 1)} kg ({peso.Fecha}); {delta}", UsaFallback: true);
         }
 
-        if (t.Contains("comida") || t.Contains("qué comí") || t.Contains("registrad"))
+        // Objetivo.
+        if (t.Contains("objetivo") || t.Contains("meta"))
         {
-            var comidas = ctx?.Hoy?.Comidas ?? Array.Empty<ComidaResumen>();
-            var txt = comidas.Length == 0
-                ? "Aún no tienes comidas registradas hoy."
-                : "Hoy registraste: " + string.Join("; ", comidas.Select((c, i) => $"{i + 1}. {c.Nombre} ({c.Kcal:N0} kcal)"));
-            return new ConversationalResponse(txt, UsaFallback: true);
+            if (objetivo == null)
+                return new ConversationalResponse("No tenés una meta calórica definida. Calculala en Objetivo.", UsaFallback: true);
+            return new ConversationalResponse($"Tu objetivo es {objetivo.Tipo.ToLowerInvariant()} en {Num(objetivo.MetaKcal)} kcal diarias. Riesgo evaluado: {objetivo.Riesgo.ToLowerInvariant()}.", UsaFallback: true);
         }
 
-        return new ConversationalResponse("¿Qué te gustaría registrar o consultar?", UsaFallback: true);
+        // Lista de comidas registradas hoy.
+        if (t.Contains("qué com") || t.Contains("que com") || t.Contains("comidas tengo")
+            || t.Contains("registrad") || t.Contains("qué hay") || t.Contains("que hay"))
+        {
+            var comidas = hoy?.Comidas;
+            if (comidas == null || comidas.Length == 0)
+                return new ConversationalResponse("Hoy todavía no tenés comidas registradas.", UsaFallback: true);
+
+            // Con muchas comidas se listan las últimas: volcar las 17 del día
+            // no es una respuesta, es un volcado.
+            var ultimas = comidas.Reverse().Take(4).Reverse().ToArray();
+            var detalle = string.Join("; ", ultimas.Select(c => $"{c.Nombre} a las {c.Hora} ({Num(c.Kcal)} kcal)"));
+            var resto = comidas.Length - ultimas.Length;
+            var extra = resto > 0 ? $" Son {comidas.Length} en total." : "";
+            return new ConversationalResponse($"Hoy registraste {comidas.Length} {(comidas.Length == 1 ? "comida" : "comidas")}: {detalle}.{extra}", UsaFallback: true);
+        }
+
+        // Balance / "cómo voy": el caso más consultado, con kcal y macros reales.
+        if (t.Contains("calor") || t.Contains("cómo voy") || t.Contains("como voy")
+            || t.Contains("balance") || t.Contains("estado") || t.Contains("resumen")
+            || t.Contains("qué tal") || t.Contains("que tal") || t.Contains("cómo vengo"))
+        {
+            if (hoy == null || (hoy.KcalConsumidas == 0 && (hoy.Comidas?.Length ?? 0) == 0))
+                return new ConversationalResponse("Hoy todavía no tenés comidas registradas, así que no hay balance para mostrar.", UsaFallback: true);
+
+            var kcal = hoy.KcalConsumidas;
+            var m = hoy.Macros;
+            var cabecera = hoy.MetaKcal is { } meta
+                ? $"Llevás {Num(kcal)} de {Num(meta)} kcal hoy"
+                : $"Llevás {Num(kcal)} kcal hoy y no tenés meta definida";
+            var quedan = hoy.MetaKcal is { } mk ? $" Te quedan {Num(Math.Max(0, mk - kcal))} kcal." : "";
+            var macros = $" Proteínas {Num(m.ProteinaG)} g, grasas {Num(m.GrasaG)} g, carbohidratos {Num(m.CarbohidratoG)} g.";
+            return new ConversationalResponse(cabecera + "." + quedan + macros, UsaFallback: true);
+        }
+
+        // Cualquier otra consulta: se dice qué se SÍ puede responder, sin inventar.
+        var opciones = new List<string>();
+        if (hoy is { KcalConsumidas: > 0 }) opciones.Add("tu balance de hoy");
+        if (peso != null) opciones.Add("tu peso");
+        if (objetivo != null) opciones.Add("tu objetivo");
+        if (hoy?.Comidas is { Length: > 0 }) opciones.Add("las comidas que registraste hoy");
+
+        var cierre = opciones.Count > 0
+            ? "Ahora mismo puedo responderte por " + string.Join(", ", opciones) + "."
+            : "Todavía no tenés datos registrados, así que no hay nada que resumir.";
+
+        return new ConversationalResponse($"No pude responder eso con detalle.{cierre}", UsaFallback: true);
     }
+
+    private static bool EsSaludo(string t) =>
+        t.StartsWith("hola") || t.StartsWith("buenos") || t.StartsWith("buenas")
+        || t.StartsWith("hey") || t.StartsWith("qué tal");
+
+    private static bool EsDespedida(string t) =>
+        t.StartsWith("adiós") || t.StartsWith("adios") || t.StartsWith("hasta")
+        || t.StartsWith("chao") || t.StartsWith("bye") || t.StartsWith("nos vemos");
 }
