@@ -1,50 +1,703 @@
 <template>
-  <section class="form-screen">
-    <h2>Registrar comida</h2>
-    <form class="form-screen" @submit.prevent="registrar">
-      <div class="field"><label for="r-nombre">Nombre</label><input id="r-nombre" v-model="form.nombre" /></div>
-      <div v-for="(it, i) in form.items" :key="i" class="item-row">
-        <select v-model="it.nombreAlimento" :aria-label="`Alimento ${i + 1}`">
-          <option v-for="a in alimentos" :key="a.id" :value="a.nombre">{{ a.nombre }}</option>
-        </select>
-        <input v-model.number="it.cantidad" type="number" step="0.1" :aria-label="`Cantidad ${i + 1}`" />
-        <input v-model="it.unidad" placeholder="G" :aria-label="`Unidad ${i + 1}`" />
-        <button class="btn-ghost" type="button" @click="form.items.splice(i,1)" aria-label="Quitar alimento">✕</button>
-      </div>
-      <div class="form-actions">
-        <button class="btn-ghost" type="button" @click="form.items.push({ nombreAlimento: alimentos[0]?.nombre ?? '', cantidad: 100, unidad: 'G' })">+ alimento</button>
-        <button class="btn-primary" :disabled="loading">Registrar</button>
-      </div>
-    </form>
-    <p v-if="loading" class="msg-status">Registrando…</p>
-    <p v-if="ok" class="form-ok">Comida registrada (Id {{ ok }}).</p>
-    <p v-if="error" class="form-error">{{ error }}</p>
+  <section class="registro">
+    <!-- Título dot-matrix: igual de pesado que en Inicio y Chat. -->
+    <header class="registro__head">
+      <h1 class="registro__titulo">registrar comida</h1>
+      <p class="label">{{ hoy }}</p>
+    </header>
 
-    <h3 class="section-title">Balance del día</h3>
-    <dl class="result-grid">
-      <dt>Consumidas</dt><dd>{{ balance ?? '—' }} kcal</dd>
-    </dl>
+    <!-- Tipo de comida como chips (viene del catálogo, no texto libre). -->
+    <div class="grupo">
+      <p class="label">TIPO DE COMIDA</p>
+      <div class="chips">
+        <button
+          v-for="t in tiposComida"
+          :key="t.id"
+          type="button"
+          class="chip"
+          :class="{ 'chip--on': idTipoComida === t.id }"
+          :aria-pressed="idTipoComida === t.id"
+          @click="idTipoComida = t.id"
+        >
+          {{ t.descripcion }}
+        </button>
+      </div>
+    </div>
+
+    <!-- ============ ALIMENTOS ============ -->
+    <div class="grupo">
+      <p class="label">ALIMENTOS · {{ filas.length }}</p>
+
+      <ul v-if="filas.length" class="lineas">
+        <li v-for="(f, i) in filas" :key="i" class="linea" :class="{ 'linea--error': errores[i] }">
+          <!-- Combobox: input + resultados. Reemplaza al <select> nativo. -->
+          <div class="combobox">
+            <input
+              v-model="f.texto"
+              class="input combobox__input"
+              :placeholder="f.nombreAlimento || 'Buscar alimento…'"
+              :aria-label="`Alimento ${i + 1}`"
+              @focus="abrir(i)"
+              @input="abrir(i)"
+            />
+            <ul v-if="abierto === i" class="combobox__lista">
+              <li v-if="!candidatos(i).length" class="combobox__vacio label">SIN COINCIDENCIAS</li>
+              <li
+                v-for="a in candidatos(i)"
+                :key="a.nombre"
+                class="combobox__opcion"
+                @click="elegir(i, a)"
+              >
+                <span>{{ a.nombre }}</span>
+                <span class="num">{{ a.kcalPorBase }} kcal/100g</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Stepper propio; los spinners nativos quedan ocultos. -->
+          <div class="stepper">
+            <button type="button" class="stepper__btn" aria-label="Menos" @click="bajar(i)">−</button>
+            <input
+              v-model.number="f.cantidad"
+              class="input stepper__valor num"
+              type="number"
+              inputmode="decimal"
+              step="1"
+              min="0"
+              :aria-label="`Cantidad ${i + 1}`"
+            />
+            <button type="button" class="stepper__btn" aria-label="Más" @click="subir(i)">+</button>
+          </div>
+
+          <!-- Unidad: selector de catálogo, no texto libre. -->
+          <select v-model="f.unidad" class="input select" :aria-label="`Unidad ${i + 1}`">
+            <option v-for="u in unidades" :key="u.codigo" :value="u.codigo">{{ u.codigo.toLowerCase() }}</option>
+          </select>
+
+          <!-- kcal en vivo: el dato que faltaba. -->
+          <span class="linea__kcal num" :class="{ 'linea__kcal--vacio': !kcalDe(i) }">
+            {{ kcalDe(i) ?? '—' }}
+            <span class="label">KCAL</span>
+          </span>
+
+          <button type="button" class="remove" :aria-label="`Quitar ${f.nombreAlimento}`" @click="quitar(i)">
+            <X :size="16" :stroke-width="1.5" />
+          </button>
+
+          <p v-if="errores[i]" class="linea__error label">{{ errores[i] }}</p>
+        </li>
+      </ul>
+
+      <button type="button" class="btn-ghost" @click="agregar">+ añadir alimento</button>
+    </div>
+
+    <!-- ============ TOTAL EN VIVO ============ -->
+    <div class="total">
+      <div class="total__cabeza">
+        <p class="label">ESTA COMIDA</p>
+        <p class="total__valor">{{ total.toLocaleString('es-MX') }}<span class="label"> KCAL</span></p>
+      </div>
+
+      <!-- Barra segmentada del día: gris lo ya consumido, blanco esta comida. -->
+      <div class="barra" role="img" :aria-label="`Hoy ${hoyKcal} kcal, esta comida ${total} kcal`">
+        <div class="barra__track">
+          <div class="barra__previo" :style="{ width: `${pctPrevio}%` }" />
+          <div class="barra__nueva" :style="{ width: `${pctNueva}%` }" />
+        </div>
+        <p class="barra__pie label">
+          <span>HOY {{ hoyKcal.toLocaleString('es-MX') }}</span>
+          <span v-if="tieneObjetivo && metaCalorica">/ {{ metaCalorica.toLocaleString('es-MX') }}</span>
+          <span v-else class="barra__pie-warn">SIN META</span>
+        </p>
+      </div>
+    </div>
+
+    <!-- ============ CTA + estados ============ -->
+    <div class="registro__pie">
+      <p v-if="error" class="form-error" role="alert">{{ error }}</p>
+      <p v-if="aviso" class="form-ok">{{ aviso }}</p>
+      <button
+        type="button"
+        class="cta"
+        :disabled="!puedeRegistrar || loading"
+        @click="registrar"
+      >
+        {{ loading ? 'REGISTRANDO' : 'REGISTRAR' }}
+      </button>
+    </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { X } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
 import { apiFetch } from '../../shared/api/client'
 
-const alimentos = ref<any[]>([])
-const form = ref({ fechaConsumo: new Date().toISOString(), nombre: '', items: [{ nombreAlimento: '', cantidad: 100, unidad: 'G' }] })
-const loading = ref(false); const error = ref(''); const ok = ref<number | null>(null); const balance = ref<number | null>(null)
+interface Alimento {
+  nombre: string
+  kcalPorBase: number | null
+  baseGramos: number | null
+  baseUnidad: string | null
+  porcion: { descripcion: string; cantidad: number; gramos: number | null; unidad: string } | null
+}
+interface Fila {
+  nombreAlimento: string
+  texto: string
+  cantidad: number
+  unidad: string
+}
 
-onMounted(async () => { alimentos.value = await apiFetch('/alimentos'); form.value.items[0]!.nombreAlimento = alimentos.value[0]?.nombre ?? '' })
+const alimentos = ref<Alimento[]>([])
+const unidades = ref<{ codigo: string; simbolo: string | null }[]>([])
+
+// TipoComida no está mapeada en EF; el endpoint /panel la resuelve para las
+// comidas registradas. Acá se replica el catálogo por simplicidad del cliente:
+// es dato de solo lectura y no muta desde la UI.
+const tiposComida = [
+  { id: 5, descripcion: 'Desayuno' },
+  { id: 1, descripcion: 'Comida' },
+  { id: 3, descripcion: 'Colación' },
+  { id: 2, descripcion: 'Cena' },
+]
+
+const filas = ref<Fila[]>([vacia()])
+const idTipoComida = ref<number | null>(5)
+const abierto = ref<number | null>(null)
+const loading = ref(false)
+const error = ref('')
+const aviso = ref('')
+const hoyKcal = ref(0)
+const metaCalorica = ref<number | null>(null)
+const tieneObjetivo = ref(false)
+
+function vacia(): Fila {
+  return { nombreAlimento: '', texto: '', cantidad: 100, unidad: 'G' }
+}
+
+const hoy = new Date()
+  .toLocaleDateString('es-MX', { weekday: 'long', day: '2-digit', month: 'long' })
+  .toUpperCase()
+
+function abrir(i: number) {
+  abierto.value = i
+}
+
+function cerrar() {
+  abierto.value = null
+}
+
+function candidatos(i: number) {
+  const q = filas.value[i]?.texto.trim().toLowerCase() ?? ''
+  const opciones = alimentos.value.filter((a) => !q || a.nombre.toLowerCase().includes(q))
+  return opciones.slice(0, 8)
+}
+
+function elegir(i: number, a: Alimento) {
+  filas.value[i]!.nombreAlimento = a.nombre
+  // Si el alimento trae porción declarada, se precarga la unidad de esa porción.
+  if (a.porcion) filas.value[i]!.unidad = a.porcion.unidad
+  cerrar()
+}
+
+// kcal en vivo: escala la energía por 100 g a la cantidad pedida.
+function kcalDe(i: number): number | null {
+  const f = filas.value[i]
+  if (!f?.nombreAlimento || !f.cantidad || f.cantidad <= 0) return null
+  const a = alimentos.value.find((x) => x.nombre === f.nombreAlimento)
+  if (!a?.kcalPorBase) return null
+  return Math.round((a.kcalPorBase * f.cantidad) / 100)
+}
+
+const total = computed(() =>
+  filas.value.reduce((sum, _, i) => sum + (kcalDe(i) ?? 0), 0),
+)
+
+// Validación visible por fila.
+const errores = computed(() =>
+  filas.value.map((f) => {
+    if (!f.nombreAlimento) return 'ELEGÍ UN ALIMENTO'
+    if (!f.cantidad || f.cantidad <= 0) return 'CANTIDAD DEBE SER MAYOR A 0'
+    return null
+  }),
+)
+
+const puedeRegistrar = computed(() => filas.value.length > 0 && errores.value.every((e) => e === null))
+
+// Escala de la barra: meta si existe, si no el máximo entre lo previo y el total.
+const escalaBarra = computed(() => metaCalorica.value ?? Math.max(hoyKcal.value + total.value, 1))
+const pctPrevio = computed(() => Math.min(100, (hoyKcal.value / escalaBarra.value) * 100))
+const pctNueva = computed(() => Math.min(100 - pctPrevio.value, (total.value / escalaBarra.value) * 100))
+
+// Paso fijo de 1. Un paso adaptativo (10 con cantidades grandes) obligaba a
+// llegar a 12 para poder bajar de a uno; el input numérico cubre el resto.
+const PASO = 1
+
+function subir(i: number) {
+  const f = filas.value[i]!
+  f.cantidad = Math.round((f.cantidad + PASO) * 100) / 100
+}
+
+function bajar(i: number) {
+  const f = filas.value[i]!
+  f.cantidad = Math.max(0, Math.round((f.cantidad - PASO) * 100) / 100)
+}
+
+function agregar() {
+  filas.value.push(vacia())
+  abierto.value = filas.value.length - 1
+}
+
+function quitar(i: number) {
+  filas.value.splice(i, 1)
+  if (!filas.value.length) filas.value.push(vacia())
+  cerrar()
+}
+
+onMounted(async () => {
+  try {
+    const [cat, uni, panel] = await Promise.all([
+      apiFetch<Alimento[]>('/alimentos'),
+      apiFetch<{ codigo: string; simbolo: string | null }[]>('/unidades'),
+      apiFetch<{ caloriasConsumidas: number; metaCalorica: number | null; tieneObjetivo: boolean }>('/panel'),
+    ])
+    alimentos.value = cat
+    unidades.value = uni
+    hoyKcal.value = panel.caloriasConsumidas
+    metaCalorica.value = panel.metaCalorica
+    tieneObjetivo.value = panel.tieneObjetivo
+    if (cat[0]) filas.value[0]!.nombreAlimento = cat[0].nombre
+  } catch (e: unknown) {
+    error.value = 'No se pudo cargar el catálogo de alimentos.'
+  }
+})
 
 async function registrar() {
-  loading.value = true; error.value = ''
+  if (!puedeRegistrar.value || loading.value) return
+  loading.value = true
+  error.value = ''
+  aviso.value = ''
   try {
-    const r = await apiFetch<{ id: number }>('/comidas', { method: 'POST', body: JSON.stringify(form.value) })
-    ok.value = r.id
-    const b = await apiFetch<{ caloriasConsumidas: number }>(`/balance?fecha=${new Date().toISOString().slice(0,10)}`)
-    balance.value = b.caloriasConsumidas
-  } catch (e: any) { error.value = e?.message ?? 'Error' }
-  finally { loading.value = false }
+    const cuerpo = {
+      FechaConsumo: new Date().toISOString(),
+      Nombre: tiposComida.find((t) => t.id === idTipoComida.value)?.descripcion ?? 'Comida',
+      Items: filas.value
+        .filter((f) => f.nombreAlimento)
+        .map((f) => ({
+          nombreAlimento: f.nombreAlimento,
+          cantidad: f.cantidad,
+          unidad: f.unidad,
+        })),
+    }
+    const r = await apiFetch<{ id: number }>('/comidas', {
+      method: 'POST',
+      body: JSON.stringify(cuerpo),
+    })
+    aviso.value = `REGISTRADO · #${r.id} · +${total.value} KCAL`
+    // Limpia el formulario: el siguiente registro arranca de cero.
+    filas.value = [vacia()]
+    if (alimentos.value[0]) filas.value[0]!.nombreAlimento = alimentos.value[0].nombre
+    const panel = await apiFetch<{ caloriasConsumidas: number }>('/panel')
+    hoyKcal.value = panel.caloriasConsumidas
+    cerrar()
+  } catch (e: unknown) {
+    const status = (e as { status?: number })?.status
+    error.value =
+      status === 503
+        ? 'El modelo está ocupado. Intentá de nuevo en un momento.'
+        : 'No se pudo registrar la comida.'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
+
+<style>
+/* ========== REGISTRAR COMIDA ==========
+   Eje propio (--form-w): más angosto que el dashboard de Inicio porque es
+   un formulario denso, pero centrado y consistente con Chat. */
+
+.registro {
+  width: 100%;
+  max-width: var(--form-w);
+  margin: 0 auto;
+  padding: var(--space-xl) var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+}
+
+.registro__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+/* Voz dot-matrix, igual que Inicio. Antes era un h2 de 24px. */
+.registro__titulo {
+  font: 400 clamp(28px, 4vw, 40px) / 1 var(--nt-font-dot);
+  text-transform: lowercase;
+}
+
+.registro__head .label {
+  color: var(--nt-ink-3);
+}
+
+.grupo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* --- CHIPS (tipo de comida) --- */
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--nt-line-strong);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--nt-ink-2);
+  font: 400 11px/1 var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: border-color var(--nt-t-fast) var(--nt-ease),
+    background var(--nt-t-fast) var(--nt-ease),
+    color var(--nt-t-fast) var(--nt-ease);
+}
+
+.chip:hover {
+  border-color: var(--nt-ink);
+  color: var(--nt-ink);
+}
+
+/* Activo: relleno blanco. Es el mismo peso que un dato confirmado. */
+.chip--on {
+  background: var(--nt-ink);
+  border-color: var(--nt-ink);
+  color: var(--nt-bg);
+}
+
+/* --- INPUTS: un solo radio (12px) y sin controles nativos --- */
+.input {
+  height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-field);
+  background: var(--nt-surface-1);
+  border: 1px solid var(--nt-line-strong);
+  color: var(--nt-ink);
+  font: 400 15px/1 var(--nt-font-sans);
+  outline: none;
+  width: 100%;
+  min-width: 0;
+}
+
+.input::placeholder {
+  color: var(--nt-ink-3);
+  font: 400 14px/1 var(--nt-font-sans);
+  text-transform: none;
+}
+
+.input:focus {
+  border-color: var(--nt-ink);
+}
+
+/* Spinners nativos fuera: Nothing nunca los expone. */
+.input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.input[type='number']::-webkit-inner-spin-button,
+.input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Select: appearance:none + flecha propia. */
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  padding-right: 30px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--nt-ink-2) 50%),
+    linear-gradient(135deg, var(--nt-ink-2) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  font-family: var(--nt-font-mono);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.select option {
+  background: var(--nt-surface-1);
+  color: var(--nt-ink);
+}
+
+/* --- LÍNEAS DE ALIMENTO --- */
+.lineas {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.linea {
+  display: grid;
+  grid-template-columns: 1fr auto 72px auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: var(--space-sm);
+  border: 1px solid var(--nt-line);
+  border-radius: var(--radius-field);
+  background: var(--nt-surface-1);
+  position: relative;
+}
+
+/* Rojo SOLO para error de validación. */
+.linea--error {
+  border-color: var(--nt-red);
+}
+
+.linea__error {
+  grid-column: 1 / -1;
+  color: var(--nt-red);
+}
+
+/* --- COMBOBOX --- */
+.combobox {
+  position: relative;
+}
+
+.combobox__lista {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  list-style: none;
+  background: var(--nt-surface-2);
+  border: 1px solid var(--nt-line-strong);
+  border-radius: var(--radius-field);
+  max-height: 260px;
+  overflow-y: auto;
+  margin: 0;
+}
+
+.combobox__opcion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 10px 12px;
+  font: 400 14px/1.3 var(--nt-font-sans);
+  cursor: pointer;
+}
+
+.combobox__opcion:hover {
+  background: var(--nt-glass);
+}
+
+.combobox__opcion .num {
+  font-size: 12px;
+  color: var(--nt-ink-2);
+}
+
+.combobox__vacio {
+  padding: 12px;
+  color: var(--nt-ink-3);
+}
+
+/* --- STEPPER --- */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border: 1px solid var(--nt-line-strong);
+  border-radius: var(--radius-field);
+  overflow: hidden;
+  height: 44px;
+}
+
+.stepper__btn {
+  width: 32px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--nt-ink-2);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background var(--nt-t-fast) var(--nt-ease),
+    color var(--nt-t-fast) var(--nt-ease);
+}
+
+.stepper__btn:hover {
+  background: var(--nt-glass);
+  color: var(--nt-ink);
+}
+
+.stepper__valor {
+  width: 58px;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: center;
+  padding: 0;
+  font-size: 14px;
+}
+
+/* --- KCAL EN VIVO --- */
+.linea__kcal {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 15px;
+  min-width: 78px;
+  justify-content: flex-end;
+  color: var(--nt-ink-2);
+}
+
+.linea__kcal--vacio {
+  color: var(--nt-ink-3);
+}
+
+/* --- ELIMINAR: sin borde, rojo en hover --- */
+.remove {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  background: transparent;
+  color: var(--nt-ink-3);
+  cursor: pointer;
+  transition: color var(--nt-t-fast) var(--nt-ease);
+}
+
+.remove:hover {
+  color: var(--nt-red);
+}
+
+/* --- TOTAL --- */
+.total {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--nt-line);
+}
+
+.total__cabeza {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.total__valor {
+  font-family: var(--nt-font-dot);
+  font-size: clamp(40px, 7vw, 64px);
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- BARRA SEGMENTADA: gris lo previo, blanco lo nuevo --- */
+.barra__track {
+  display: flex;
+  height: 10px;
+  gap: 2px;
+  background: var(--nt-surface-3);
+}
+
+.barra__previo {
+  background: var(--nt-ink-3);
+  transition: width var(--nt-t-base) var(--nt-ease);
+}
+
+.barra__nueva {
+  background: var(--nt-ink);
+  transition: width var(--nt-t-base) var(--nt-ease);
+}
+
+.barra__pie {
+  display: flex;
+  gap: var(--space-sm);
+  color: var(--nt-ink-3);
+}
+
+.barra__pie-warn {
+  border: 1px dashed var(--nt-line-strong);
+  padding: 0 6px;
+}
+
+/* --- PIE: CTA anclado + estados --- */
+.registro__pie {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--nt-line);
+}
+
+.registro__pie .form-error,
+.registro__pie .form-ok {
+  margin-right: auto;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 48px;
+  padding: 0 28px;
+  border: 1px solid var(--nt-ink);
+  border-radius: 999px;
+  background: var(--nt-ink);
+  color: var(--nt-bg);
+  font: 400 11px/12px var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: background var(--nt-t-fast) var(--nt-ease),
+    color var(--nt-t-fast) var(--nt-ease);
+}
+
+.cta:hover:not(:disabled) {
+  background: transparent;
+  color: var(--nt-ink);
+}
+
+.cta:disabled {
+  background: var(--nt-surface-3);
+  border-color: transparent;
+  color: var(--nt-ink-3);
+  cursor: default;
+}
+
+@media (max-width: 720px) {
+  .linea {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'combo remove'
+      'stepper unidad'
+      'kcal kcal';
+  }
+
+  .combobox { grid-area: combo; }
+  .remove { grid-area: remove; }
+  .stepper { grid-area: stepper; }
+  .select { grid-area: unidad; }
+  .linea__kcal { grid-area: kcal; justify-content: flex-start; }
+}
+</style>

@@ -1,113 +1,270 @@
-/* ========== CHAT (pantalla, header, mensajes) ========== */
+/* ========== CHAT (topbar, estado vacío, mensajes) ==========
+   Un solo eje: todo el contenido vive en --chat-w (720px).
+   El topbar usa la MISMA caja, no el ancho completo del content area.
+   Agente = sin burbuja + etiqueta mono. Usuario = píldora #1A1A1A. */
 
 .chat-screen {
   flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: calc(100svh - 60px);
-  background: linear-gradient(180deg, #0a0f1e 0%, #060a14 100%);
+  min-height: calc(100svh - var(--nt-header-h));
+  background: var(--nt-bg);
 }
 
-.chat-header {
+/* --- TOPBAR: 48px, sin caja, solo hairline --- */
+.topbar {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 var(--space-md);
+  border-bottom: 1px solid var(--nt-line);
+  background: var(--nt-bg);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Mismo eje que el composer y el orbe. Antes ocupaba todo el ancho
+   (x=304..1806) mientras el input medía 608: tres ejes distintos. */
+.topbar__inner {
+  width: 100%;
+  max-width: var(--chat-w);
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: var(--space-lg) var(--space-xl) 0;
+  gap: var(--space-sm);
 }
 
-.chip-model {
+.topbar__acciones {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Indicador de LLM: punto + modelo. Rojo SOLO si no responde. */
+.llm {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 400 11px/12px var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--nt-ink-2);
+}
+
+.llm__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--nt-ink-2);
+}
+
+.llm--down {
+  color: var(--nt-red);
+}
+
+.llm--down .llm__dot {
+  background: var(--nt-red);
+}
+
+/* --- ESTADO VACÍO: orbe centrado verticalmente --- */
+.vacio {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  height: 38px;
+  justify-content: center;
+  gap: var(--space-lg);
+  width: 100%;
+  max-width: var(--chat-w);
+  margin: 0 auto;
+  padding: var(--space-lg) var(--space-md);
+}
+
+.vacio__orbe {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.vacio__titulo {
+  font: 400 clamp(28px, 5vw, 44px) / 1.05 var(--nt-font-dot);
+  text-transform: lowercase;
+  text-align: center;
+}
+
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Sugerencias como .nt-tag: recuadro hairline, no píldora rellena. */
+.chip {
+  height: 32px;
   padding: 0 14px;
-  border-radius: 14px;
-  background: var(--surface-glass);
-  border: 1px solid var(--border-default);
-  font: 600 13px var(--font);
+  border: 1px solid var(--nt-line-strong);
+  border-radius: var(--radius-input);
+  background: transparent;
+  color: var(--nt-ink);
+  font: 400 11px/1 var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: border-color var(--nt-t-fast) var(--nt-ease),
+    background var(--nt-t-fast) var(--nt-ease);
+}
+
+.chip:hover {
+  border-color: var(--nt-ink);
+  background: var(--nt-glass);
+}
+
+/* --- CONVERSACIÓN --- */
+.conversa {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  max-width: var(--chat-w);
+  margin: 0 auto;
+  padding: 0 var(--space-md);
+}
+
+.conversa__avatar {
+  padding: var(--space-md) 0;
 }
 
 .chat-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 18px var(--space-xl);
+  padding-bottom: var(--space-lg);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
   scrollbar-width: none;
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
 }
 
-.msg-user {
+.chat-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Agente: SIN burbuja. Texto sobre fondo, etiqueta mono arriba.
+   Es lo que hace Nothing: la voz del asistente no compite con la del usuario. */
+.msg--agent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font: 400 16px/1.55 var(--nt-font-sans);
+  color: var(--nt-ink);
+}
+
+.msg__meta {
+  color: var(--nt-ink-3);
+  font-size: 10px;
+}
+
+/* Usuario: píldora rellena, alineada a la derecha. */
+.msg--user {
   align-self: flex-end;
   max-width: 78%;
-  padding: 8px 14px;
-  border-radius: 16px;
-  background: var(--surface-bubble-user);
-  border: 1px solid var(--border-subtle);
-  font: 400 12px/1.4 var(--font);
-}
-
-.msg-agent {
-  align-self: flex-start;
-  max-width: 92%;
-  font: 400 12px/1.5 var(--font);
-  color: var(--text-1);
+  padding: 10px 14px;
+  border-radius: var(--radius-bubble);
+  background: var(--nt-surface-2);
+  border: 0;
+  font: 400 15px/1.45 var(--nt-font-sans);
+  color: var(--nt-ink);
 }
 
 .msg-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-  color: var(--text-3);
+  gap: 4px;
+  color: var(--nt-ink-3);
 }
 
 .msg-actions button {
   background: none;
   border: 0;
   color: inherit;
-  font: 400 11px var(--font);
+  font: 400 11px/12px var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   cursor: pointer;
-  padding: 2px 0;
+  padding: 6px 8px;
+  border-radius: var(--radius-input);
   display: inline-flex;
   align-items: center;
   gap: 4px;
 }
 
 .msg-actions button:hover {
-  color: var(--text-1);
+  color: var(--nt-ink);
+  background: var(--nt-glass);
 }
 
 .msg-status {
-  font: 400 11px var(--font);
-  color: var(--text-3);
+  font: 400 11px/1.4 var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--nt-ink-2);
   align-self: flex-start;
 }
 
 .msg-status--error {
-  color: var(--state-danger);
+  color: var(--nt-red);
 }
 
 .msg-status--ok {
-  color: var(--state-success);
+  color: var(--nt-ok);
 }
 
+.msg-status--warning {
+  color: var(--nt-warn);
+}
+
+/* Escribiendo: puntos que se encienden en secuencia. */
 .thinking-dots::after {
   content: '⋯';
-  animation: thinking-blink 1.2s steps(3) infinite;
+  animation: thinking-blink 1.2s steps(1) infinite;
 }
 
 @keyframes thinking-blink {
   0%,
   100% {
-    opacity: 0.2;
+    color: var(--nt-ink-3);
   }
-  50% {
-    opacity: 1;
+  33% {
+    color: var(--nt-ink);
   }
+}
+
+/* Indicador sutil de fallback (modelo no disponible, respuesta hardcoded) */
+.msg-fallback {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 6px;
+  font: 400 9px/1 var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--nt-warn);
+  background: rgba(232, 163, 23, 0.12);
+  border: 1px solid var(--nt-warn);
+  border-radius: var(--radius-input);
+  opacity: 0.8;
+}
+
+.msg--agent:hover .msg-fallback {
+  opacity: 1;
 }

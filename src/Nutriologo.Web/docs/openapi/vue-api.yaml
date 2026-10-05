@@ -1,0 +1,180 @@
+openapi: 3.0.3
+info:
+  title: Nutriologo Vue API
+  description: API endpoints expuestos por la aplicación Vue Nutriologo para consumo por PowerApps
+  version: "1.0"
+  servers:
+    - url: https://nexsmart.com.mx/api
+      description: Servidor de producción vía Cloudflare Tunnel
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+paths:
+  /balance:
+    get:
+      summary: Obtener calorías consumidas del día
+      description: Retorna el total de calorías consumidas para la fecha especificada
+      operationId: GetBalance
+      parameters:
+        - name: fecha
+          in: query
+          required: true
+          description: Fecha en formato YYYY-MM-DD
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Éxito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BalanceResponse'
+        '401':
+          description: No autenticado
+        '404':
+          description: No hay datos para la fecha especificada
+
+  /perfil:
+    get:
+      summary: Obtener perfil de usuario
+      description: Retorna los datos del perfil del usuario autenticado
+      operationId: GetPerfil
+      responses:
+        '200':
+          description: Éxito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerfilResponse'
+        '401':
+          description: No autenticado
+
+  /objetivo/calcular:
+    post:
+      summary: Calcular objetivo nutricional
+      description: Calcula métricas nutricionales (BMR, TDEE, meta, riesgo, ritmo) basadas en los parámetros proporcionados
+      operationId: CalcularObjetivo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ObjetivoRequest'
+      responses:
+        '200':
+          description: Éxito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ObjetivoResponse'
+        '400':
+          description: Parámetros inválidos
+        '401':
+          description: No autenticado
+
+components:
+  schemas:
+    BalanceResponse:
+      type: object
+      properties:
+        caloriasConsumidas:
+          type: number
+          description: Total de calorías consumidas
+        fecha:
+          type: string
+          format: date
+          description: Fecha del balance
+
+    PerfilResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: ID del perfil
+        peso:
+          type: number
+          description: Peso en kilogramos
+        altura:
+          type: number
+          description: Altura en centímetros
+        nombre:
+          type: string
+          description: Nombre del usuario
+
+    ObjetivoRequest:
+      type: object
+      required:
+        - pesoKg
+        - alturaCm
+        - edadAnios
+        - sexo
+        - factorActividad
+        - tipoObjetivo
+      properties:
+        pesoKg:
+          type: number
+          description: Peso en kilogramos
+        alturaCm:
+          type: number
+          description: Altura en centímetros
+        edadAnios:
+          type: integer
+          description: Edad en años
+        sexo:
+          type: string
+          description: Sexo (Masculino/Femenino)
+          enum: [Masculino, Femenino]
+        factorActividad:
+          type: number
+          description: Factor de actividad física (1.2 - 2.4)
+        tipoObjetivo:
+          type: integer
+          description: Tipo de objetivo (0=Perder, 1=Mantener, 2=Ganar)
+          enum: [0, 1, 2]
+
+    ObjetivoResponse:
+      type: object
+      properties:
+        metabolismoBasal:
+          type: number
+          description: Tasa metabólica basal (BMR)
+        gastoEnergeticoTotal:
+          type: number
+          description: Gasto energético total (TDEE)
+        metaCaloricaEstimada:
+          type: number
+          description: Meta calórica estimada
+        deficitDiarioRequerido:
+          type: number
+          description: Déficit diario requerido
+        ritmoSemanalKg:
+          type: number
+          description: Ritmo de pérdida/ganancia de peso semanal
+        evaluacionObjetivo:
+          type: object
+          properties:
+            idNivelRiesgo:
+              type: integer
+              description: Nivel de riesgo (1=Bajo, 2=Moderado, 3=Alto)
+            descripcion:
+              type: string
+              description: Descripción del nivel de riesgo
+        evaluacionMetaCalorica:
+          type: object
+          properties:
+            idNivelRiesgo:
+              type: integer
+            deficitCalculado:
+              type: number
+            porcentajeDeficit:
+              type: number
+
+security:
+  - BearerAuth: []
+EOF

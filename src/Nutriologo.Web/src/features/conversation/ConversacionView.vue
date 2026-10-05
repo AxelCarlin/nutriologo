@@ -1,67 +1,121 @@
 <template>
-  <div class="chat-screen">
-    <header class="chat-header">
-      <div class="chip-model">
-        <span>Nutriólogo</span>
-        <span aria-hidden="true">⌃</span>
-      </div>
-      <div class="header-actions">
-        <button class="btn-icon" type="button" title="Nueva conversación" aria-label="Nueva conversación" @click="nueva">
-          <MessageSquarePlus :size="20" :stroke-width="1.5" />
-        </button>
+  <div class="chat-screen" :class="{ 'chat-screen--vacio': !hayMensajes }">
+    <!-- Topbar: 48px, sin caja, solo hairline. Mismo eje 720px que el resto. -->
+    <header class="topbar">
+      <div class="topbar__inner">
+        <!-- No repite el wordmark del sidebar: aqui va el ESTADO del agente. -->
+        <p class="orb-state" :data-state="estadoVisual">
+          <span class="orb-state__dot" aria-hidden="true" />
+          <span>{{ ETIQUETA_ESTADO[estadoVisual] }}</span>
+        </p>
+
+        <div class="topbar__acciones">
+          <!-- Indicador LLM: punto + modelo. Rojo solo si el servidor no responde. -->
+          <span class="llm" :class="{ 'llm--down': llmCaido }" :title="llmCaido ? 'El modelo no responde' : 'Ollama en local'">
+            <span class="llm__dot" aria-hidden="true" />
+            <span class="llm__model">{{ llmCaido ? 'SIN CONEXIÓN' : 'LOCAL' }}</span>
+          </span>
+          <button class="btn-icon" type="button" title="Nueva conversación" aria-label="Nueva conversación" @click="nueva">
+            <MessageSquarePlus :size="18" :stroke-width="1.5" />
+          </button>
+        </div>
       </div>
     </header>
 
-    <Orb :state="orbState" />
-
-    <div class="chat-scroll">
-      <div
-        v-for="m in mensajes"
-        :key="m.id"
-        :class="m.rol === 'user' ? 'msg-user' : 'msg-agent'"
-      >
-        <template v-if="m.rol === 'user'">{{ m.texto }}</template>
-        <template v-else>
-          {{ m.texto }}
-          <div class="msg-actions">
-            <button type="button" @click="copiar(m.texto)">
-              <Copy :size="14" :stroke-width="1.5" /> Copiar
-            </button>
-          </div>
-        </template>
+    <!-- ============ ESTADO VACÍO: orbe centrado + guía ============ -->
+    <template v-if="!hayMensajes">
+      <div class="vacio">
+        <div class="vacio__orbe">
+          <Orb :state="orbState" variante="hero" />
+          <p class="orb-state" :data-state="estadoVisual">
+            <span class="orb-state__dot" aria-hidden="true" />
+            <span>{{ ETIQUETA_ESTADO[estadoVisual] }}</span>
+          </p>
+        </div>
+        <h1 class="vacio__titulo">¿qué comiste hoy?</h1>
+        <div class="chips">
+          <button
+            v-for="s in sugerencias"
+            :key="s.texto"
+            type="button"
+            class="chip"
+            @click="usarSugerencia(s.texto)"
+          >
+            {{ s.texto }}
+          </button>
+        </div>
       </div>
-      <p v-if="isError" class="msg-status msg-status--error">{{ error }}</p>
-      <p v-if="isAwaitingClarification" class="msg-status msg-status--warning">
-        {{ needsClarificationMessage }}
-      </p>
-      <p v-if="isThinkingOrSpeaking" class="msg-status thinking-dots">Analizando</p>
-      <p v-if="exito" class="msg-status msg-status--ok">{{ exito }}</p>
-    </div>
+    </template>
 
+    <!-- ============ CONVERSACIÓN ============ -->
+    <template v-else>
+      <div class="conversa">
+        <div class="conversa__avatar">
+          <Orb :state="orbState" variante="avatar" />
+        </div>
+        <div class="chat-scroll">
+          <div
+            v-for="m in mensajes"
+            :key="m.id"
+            class="msg"
+            :class="m.rol === 'user' ? 'msg--user' : 'msg--agent'"
+          >
+            <p v-if="m.rol !== 'user'" class="label msg__meta">NUTRIÓLOGO</p>
+            <template v-if="m.rol === 'user'">{{ m.texto }}</template>
+            <template v-else>
+              {{ m.texto }}
+              <span v-if="m.fallback" class="msg-fallback" title="Respuesta de respaldo (modelo no disponible)">
+                <span aria-hidden="true">⚡</span>
+              </span>
+              <div class="msg-actions">
+                <button type="button" @click="copiar(m.texto)">
+                  <Copy :size="14" :stroke-width="1.5" /> Copiar
+                </button>
+              </div>
+            </template>
+          </div>
+          <p v-if="isError" class="msg-status msg-status--error">{{ error }}</p>
+          <!-- Sin recordatorio extra: la pregunta del asistente YA esta como
+               mensaje. Antes se mostraba dos veces, y una era generica. -->
+          <p v-if="isThinkingOrSpeaking" class="msg-status thinking-dots">Analizando</p>
+          <p v-if="exito" class="msg-status msg-status--ok">{{ exito }}</p>
+        </div>
+      </div>
+    </template>
+
+    <!-- ========== COMPOSER: un solo pill, 720px ========== -->
     <form class="composer" @submit.prevent="enviar">
       <div class="composer-box">
+        <RouterLink
+          to="/registrar"
+          class="composer-btn"
+          title="Registro manual"
+          aria-label="Registro manual"
+        >
+          <Plus :size="18" :stroke-width="1.5" />
+        </RouterLink>
         <input
           v-model="texto"
           :disabled="enviando"
-          placeholder="Ej: Comí dos huevos y dos tortillas"
+          placeholder="Escribe lo que comiste…"
           aria-label="Mensaje al asistente"
         />
-        <div class="composer-tools">
-          <RouterLink to="/registrar" title="Registro manual" aria-label="Registro manual">
-            <Plus :size="16" :stroke-width="1.5" />
-          </RouterLink>
-        </div>
+        <button
+          class="send-btn"
+          type="submit"
+          :disabled="enviando || !texto.trim()"
+          aria-label="Enviar"
+        >
+          <ArrowUp :size="18" :stroke-width="2" />
+        </button>
       </div>
-      <button class="send-btn" type="submit" :disabled="enviando || !texto.trim()" aria-label="Enviar">
-        <ArrowUp :size="20" :stroke-width="2" />
-      </button>
     </form>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ArrowUp, Copy, MessageSquarePlus, Plus } from 'lucide-vue-next'
-import { ref, computed, nextTick } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import { apiFetch } from '../../shared/api/client'
 import Orb from '../../shared/components/Orb.vue'
 
@@ -77,14 +131,39 @@ const orbState = ref<AgentState>('idle')
 
 // Helper computeds for template access
 const isError = computed(() => conversationState.value === 'error')
-const isAwaitingClarification = computed(() => conversationState.value === 'awaiting-clarification')
 const isThinkingOrSpeaking = computed(() => orbState.value === 'thinking' || orbState.value === 'speaking')
+
+const hayMensajes = computed(() => mensajes.value.length > 0)
+const llmCaido = computed(() => conversationState.value === 'error')
+
+const ETIQUETA_ESTADO: Record<string, string> = {
+  idle: 'LISTO',
+  listening: 'ESCUCHANDO',
+  thinking: 'PENSANDO',
+  speaking: 'RESPONDIENDO',
+  error: 'SIN RESPUESTA',
+}
+
+const estadoVisual = computed(() =>
+  conversationState.value === 'error' ? 'error' : orbState.value,
+)
+
+// Sugerencias del estado vacío: cubren las tres intenciones reales del LLM.
+const sugerencias = [
+  { texto: 'Registrar desayuno', prompt: 'Comí un desayuno de huevos con tortillas' },
+  { texto: '¿Cuántas calorías llevo?', prompt: '¿Cuántas calorías llevo hoy?' },
+  { texto: 'Qué cenar hoy', prompt: '¿Qué puedo cenar hoy?' },
+]
+
+function usarSugerencia(prompt: string) {
+  texto.value = prompt
+}
 
 // Mensajes del chat - límite máximo para mantener performance
 const MAX_HISTORIAL = 100
 
 // Mensajes del chat
-const mensajes = ref<{ id: number; rol: string; texto: string }[]>([])
+const mensajes = ref<{ id: number; rol: string; texto: string; fallback?: boolean }[]>([])
 const texto = ref('')
 const enviando = ref(false)
 const error = ref('')
@@ -110,13 +189,9 @@ function nueva() {
   orbState.value = 'idle'
 }
 
-// Función para resumir historial cuando se acerca el límite
+// Función para resumir historial cuando se acerca al límite
 function resumirContexto(historialActual: Array<{ rol: string; texto: string }>): Array<{ rol: string; texto: string }> {
-  if (historialActual.length <= MAX_MENSAJES_HISTORIAL) {
-    return historialActual
-  }
-
-  // Tomar solo los mensajes más relevantes (primeros y últimos)
+  // Mantener solo los mensajes más relevantes (primeros y últimos)
   const primeros = historialActual.slice(0, 2)
   const ultimos = historialActual.slice(-2)
 
@@ -191,24 +266,40 @@ async function enviar() {
       body: JSON.stringify({ texto: texto.value, historial }),
     })
 
-    // 6. Manejar respuesta del LLM
+    // 6. Manejar respuesta del LLM.
+    // El contrato real del backend es: registrado | respuesta | aclaracion.
+    // Se comparaba contra 'pregunta', que el backend nunca emite: toda
+    // aclaracion caia en el else y se pintaba "Respuesta inesperada".
     if (r.tipo === 'registrado') {
       mensajes.value.push({ id: nextId++, rol: 'assistant', texto: 'Comida registrada correctamente.' })
       exito.value = `Comida #${r.id} registrada.`
       conversationState.value = 'active'
       orbState.value = 'speaking'
     } else if (r.tipo === 'respuesta') {
-      mensajes.value.push({ id: nextId++, rol: 'assistant', texto: r.texto ?? '' })
+      // Indicador sutil de fallback (solo debug): r.fallback === true
+      const txt = r.texto ?? ''
+      const esFallback = r.fallback === true
+      mensajes.value.push({ id: nextId++, rol: 'assistant', texto: txt, fallback: esFallback })
       conversationState.value = 'active'
       orbState.value = 'speaking'
-    } else if (r.tipo === 'pregunta') {
-      // El LLM necesita más información
-      mensajes.value.push({ id: nextId++, rol: 'assistant', texto: r.pregunta ?? needsClarificationMessage })
+    } else if (r.tipo === 'aclaracion') {
+      // El LLM necesita mas informacion. NO es un error: es una ronda mas
+      // del dialogo, asi que el estado es 'awaiting-clarification'.
+      mensajes.value.push({
+        id: nextId++,
+        rol: 'assistant',
+        texto: r.pregunta ?? needsClarificationMessage,
+      })
       conversationState.value = 'awaiting-clarification'
       orbState.value = 'idle'
     } else {
-      // Respuesta desconocida
-      mensajes.value.push({ id: nextId++, rol: 'assistant', texto: 'Respuesta inesperada del asistente.' })
+      // Solo llega aqui si el backend agrega un tipo nuevo: se muestra el
+      // contrato crudo en vez de una frase generica que oculta el problema.
+      mensajes.value.push({
+        id: nextId++,
+        rol: 'assistant',
+        texto: `Respuesta con formato no reconocido (tipo: ${String(r?.tipo ?? 'sin tipo')}).`,
+      })
       conversationState.value = 'error'
       orbState.value = 'idle'
     }
@@ -225,7 +316,8 @@ async function enviar() {
     enviando.value = false
     texto.value = ''
     await nextTick()
-    window.scrollTo({ top: document.body.scrollHeight })
+    const scroller = document.querySelector('.chat-scroll')
+    scroller?.scrollTo({ top: scroller.scrollHeight })
     // Resetear a idle después de un breve retraso
     setTimeout(() => {
       if (conversationState.value !== 'awaiting-clarification') {
@@ -240,6 +332,4 @@ async function enviar() {
 }
 </script>
 
-<style>
-/* Chat screen styles would go here, inheriting Aurenix tokens */
-</style>
+<!-- Estilos en styles/components/chat.css + composer.css (tokens Nothing). -->

@@ -1,19 +1,27 @@
-/* ========== SIDEBAR + APP SHELL ========== */
+/* ========== SIDEBAR + APP SHELL ==========
+   Links en mono MAYÚSCULAS; activo = texto blanco + filete inferior. */
 
 .app-shell {
   min-height: 100svh;
   display: flex;
 }
 
+/* Flex child con ancho intrínseco: sin min-width:0, .topbar__inner (720px)
+   desbordaba y empujaba el flex container en vez de centrarse. */
+.app-content {
+  flex: 1;
+  min-width: 0;
+}
+
 .sidebar {
-  width: 232px;
+  width: 240px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
   padding: var(--space-xl) var(--space-md);
-  border-right: 1px solid var(--border-subtle);
-  background: rgba(5, 11, 26, 0.9);
+  border-right: 1px solid var(--nt-line);
+  background: var(--nt-bg);
   position: sticky;
   top: 0;
   height: 100svh;
@@ -26,27 +34,43 @@
   padding: 0 var(--space-sm);
 }
 
+/* Marca en Doto (dot-matrix), no en una bola azul. */
 .sidebar-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  width: 32px;
+  height: 32px;
   display: grid;
   place-items: center;
-  background: var(--accent-gradient);
-  color: #fff;
-  font: 700 16px var(--font);
+  background: var(--nt-ink);
+  color: var(--nt-bg);
+  font: 400 20px/1 var(--nt-font-dot);
   flex-shrink: 0;
 }
 
 .sidebar-brand-name {
-  font: 600 15px var(--font);
+  font: 400 24px/1 var(--nt-font-dot);
+  text-transform: lowercase;
+}
+
+/* Cabecera de seccion del nav: "instrument panel". */
+/* "Navegacion" / nombre de usuario / logout: decorativos.
+   #999 real (6.3:1 sobre negro) en vez del ~#555 que fallaba accesibilidad. */
+.sidebar-label {
+  font: 400 11px/12px var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--nt-ink-2);
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
   flex: 1;
+}
+
+.sidebar-link__label {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
 }
 
 .sidebar-link {
@@ -54,11 +78,12 @@
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 12px;
-  color: var(--text-3);
+  color: var(--nt-ink-2);
   text-decoration: none;
-  font: 500 13px var(--font);
-  border: 1px solid transparent;
+  font: 400 11px/12px var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid transparent;
   background: none;
   cursor: pointer;
   width: 100%;
@@ -66,54 +91,74 @@
 }
 
 .sidebar-link:hover {
-  color: var(--text-1);
-  background: var(--surface-glass);
+  color: var(--nt-ink);
 }
 
+/* Activo: punto rojo a la izquierda (un solo acento por pantalla).
+   El subrayado fino solo no alcanza el contraste que pide la criticism. */
 .sidebar-link.router-link-active {
-  color: var(--text-1);
-  background: var(--surface-glass-strong);
-  border-color: var(--border-default);
+  color: var(--nt-ink);
 }
 
+.sidebar-link.router-link-active::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--nt-red);
+  flex-shrink: 0;
+}
+
+/* SALIR: texto discreto anclado abajo. Sin borde, sin peso visual
+   equivalente al resto del nav. */
 .sidebar-footer {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--nt-line);
+}
+
+.sidebar-logout {
+  color: var(--nt-ink-3);
+  font-size: 10px;
+}
+
+.sidebar-logout:hover {
+  color: var(--nt-ink);
 }
 
 .sidebar-user {
-  font: 500 12px var(--font);
-  color: var(--text-2);
+  font: 400 11px/12px var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--nt-ink-2);
   padding: 0 12px 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.app-content {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.topbar {
+/* La regla mobile del topbar de App.vue: en <1023px la sidebar se oculta
+   y aparece esta barra con el botón de menú. */
+.app-topbar {
   display: none;
   align-items: center;
-  gap: 10px;
-  padding: var(--space-md) var(--space-xl);
-  border-bottom: 1px solid var(--border-subtle);
-  background: rgba(5, 11, 26, 0.85);
-  backdrop-filter: blur(var(--blur-glass));
-  -webkit-backdrop-filter: blur(var(--blur-glass));
+  gap: var(--space-sm);
+  height: var(--nt-header-h);
+  padding: env(safe-area-inset-top, 0px) var(--space-md) 0;
+  border-bottom: 1px solid var(--nt-line);
+  background: var(--nt-bg);
   position: sticky;
   top: 0;
   z-index: 10;
 }
 
-.topbar-title {
-  font: 600 14px var(--font);
+.app-topbar__title {
+  font: 400 11px/12px var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--nt-ink-2);
   flex: 1;
 }
 
@@ -129,25 +174,24 @@
     bottom: 0;
     z-index: 20;
     transform: translateX(-100%);
-    transition: transform 240ms var(--ease);
+    transition: transform var(--nt-t-slow) var(--nt-ease);
     width: 260px;
   }
 
   .sidebar.open {
     transform: none;
-    box-shadow: 0 0 60px rgba(0, 0, 0, 0.6);
   }
 
   .scrim {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6);
     z-index: 15;
     border: 0;
   }
 
-  .topbar {
+  .app-topbar {
     display: flex;
   }
 }

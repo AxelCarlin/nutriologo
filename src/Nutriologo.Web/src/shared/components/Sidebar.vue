@@ -4,6 +4,7 @@
       <span class="sidebar-logo">N</span>
       <span v-if="expanded" class="sidebar-brand-name">Nutriólogo</span>
     </div>
+    <span v-if="expanded" class="sidebar-label">Navegación</span>
     <nav class="sidebar-nav">
       <RouterLink
         v-for="item in items"
@@ -13,15 +14,15 @@
         :title="item.label"
         @click="$emit('navigate')"
       >
-        <component :is="item.icon" :size="20" :stroke-width="1.5" />
-        <span v-if="expanded" class="sidebar-label">{{ item.label }}</span>
+        <component :is="item.icon" :size="16" :stroke-width="1.5" />
+        <span v-if="expanded" class="sidebar-link__label">{{ item.label }}</span>
       </RouterLink>
     </nav>
     <div class="sidebar-footer">
       <div v-if="expanded && userName" class="sidebar-user">{{ userName }}</div>
       <button type="button" class="sidebar-link sidebar-logout" title="Cerrar sesión" @click="$emit('logout')">
-        <LogOut :size="20" :stroke-width="1.5" />
-        <span v-if="expanded" class="sidebar-label">Salir</span>
+        <LogOut :size="16" :stroke-width="1.5" />
+        <span v-if="expanded" class="sidebar-link__label">Salir</span>
       </button>
     </div>
   </aside>

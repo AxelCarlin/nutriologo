@@ -1,73 +1,91 @@
-/* ========== BUTTONS ========== */
+/* ========== BUTTONS ==========
+   Mono MAYÚSCULAS, tracking amplio, bordes hairline.
+   Primario = relleno negro; hover = invertir. Mecánico, sin glow. */
 
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 36px;
-  padding: 0 18px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: var(--radius-pill);
-  background: var(--accent-gradient);
-  color: #fff;
-  font: 600 12px/1 var(--font);
-  box-shadow:
-    0 6px 20px rgba(31, 107, 255, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--nt-ink);
+  border-radius: var(--radius-input);
+  background: var(--nt-ink);
+  color: var(--nt-bg);
+  font: 400 11px/12px var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   cursor: pointer;
-  transition:
-    transform 150ms var(--ease),
-    filter 150ms var(--ease);
+  transition: background var(--nt-t-fast) var(--nt-ease),
+    color var(--nt-t-fast) var(--nt-ease),
+    transform var(--nt-t-fast) var(--nt-ease);
 }
 
 .btn-primary:hover {
-  filter: brightness(1.08);
+  background: transparent;
+  color: var(--nt-ink);
 }
 
 .btn-primary:active {
-  transform: scale(0.97);
+  transform: translateY(1px);
 }
 
 .btn-primary:disabled {
-  filter: grayscale(0.4);
-  opacity: 0.6;
+  opacity: 0.35;
   cursor: default;
 }
 
 .btn-primary--block {
   width: 100%;
-  height: 40px;
-  border-radius: 14px;
 }
 
 .btn-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-input);
   display: grid;
   place-items: center;
-  color: var(--text-1);
+  color: var(--nt-ink);
   background: transparent;
-  border: 0;
+  border: 1px solid transparent;
   cursor: pointer;
+  transition: border-color var(--nt-t-fast) var(--nt-ease),
+    background var(--nt-t-fast) var(--nt-ease);
 }
 
+.btn-icon:hover {
+  border-color: var(--nt-line-strong);
+}
+
+/* Enviar: cuadrado con borde. El círculo azul+glow era Aurenix. */
 .send-btn {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
-  border: 0;
+  border-radius: var(--radius-input);
+  border: 1px solid var(--nt-ink);
   display: grid;
   place-items: center;
-  background: var(--accent-gradient);
-  color: #fff;
-  box-shadow: 0 6px 20px rgba(31, 107, 255, 0.45);
+  background: var(--nt-ink);
+  color: var(--nt-bg);
   cursor: pointer;
   flex-shrink: 0;
+  transition: background var(--nt-t-fast) var(--nt-ease),
+    color var(--nt-t-fast) var(--nt-ease);
+}
+
+.send-btn:hover:not(:disabled) {
+  background: transparent;
+  color: var(--nt-ink);
 }
 
 .send-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.35;
   cursor: default;
+}
+
+/* Rojo: uso excepcional (peligro, borrar). Un punto por pantalla. */
+.btn-ghost--danger {
+  border-color: var(--nt-red);
+  color: var(--nt-red);
 }

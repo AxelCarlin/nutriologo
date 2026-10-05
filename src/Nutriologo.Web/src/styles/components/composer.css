@@ -1,58 +1,93 @@
-/* ========== COMPOSER ========== */
+/* ========== COMPOSER ==========
+   Un SOLO pill: + , texto y enviar dentro del mismo círculo.
+   Antes el input era un rounded-rect y el botón enviar vivía FUERA,
+   desalineado y más bajo que el campo. */
 
 .composer {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  padding: 10px var(--space-xl) var(--space-xl);
   width: 100%;
-  max-width: 720px;
+  max-width: var(--chat-w);
   margin: 0 auto;
+  padding: 0 var(--space-md) var(--space-lg);
 }
 
 .composer-box {
-  flex: 1;
-  min-height: 64px;
-  padding: 10px 12px;
-  border-radius: var(--radius-input);
-  background: var(--surface-input);
-  border: 1px solid var(--border-default);
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  align-items: center;
   gap: 8px;
+  min-height: 56px;
+  padding: 0 8px 0 8px;
+  border-radius: 999px;
+  background: var(--nt-surface-1);
+  border: 1px solid var(--nt-line-strong);
+  transition: border-color var(--nt-t-fast) var(--nt-ease);
 }
 
 .composer-box:focus-within {
-  border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(31, 107, 255, 0.14);
+  border-color: var(--nt-ink);
 }
 
+/* El placeholder es texto del usuario: Grotesk, minúsculas.
+   Mono MAYÚSCULAS ahí cansaba al escribir. */
 .composer-box input {
+  flex: 1;
+  min-width: 0;
+  height: 24px;
+  padding: 0 4px;
   background: none;
   border: 0;
   outline: 0;
-  color: var(--text-1);
-  font: 400 12px var(--font);
-  width: 100%;
+  color: var(--nt-ink);
+  font: 400 16px/1.4 var(--nt-font-sans);
 }
 
 .composer-box input::placeholder {
-  color: var(--text-3);
+  color: var(--nt-ink-3);
+  font: 400 15px/1.4 var(--nt-font-sans);
 }
 
-.composer-hint {
-  font: 400 10.5px var(--font);
-  color: var(--text-3);
+/* "+" y微观 acciones: 40x40, área de toque real, centradas. */
+.composer-btn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--nt-ink-2);
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: color var(--nt-t-fast) var(--nt-ease),
+    background var(--nt-t-fast) var(--nt-ease);
 }
 
-.composer-tools {
-  display: flex;
-  justify-content: space-between;
-  color: var(--text-3);
+.composer-btn:hover {
+  color: var(--nt-ink);
+  background: var(--nt-glass);
 }
 
-.composer-tools a {
-  color: inherit;
-  display: inline-flex;
+/* Enviar: círculo dentro del pill. Blanco con flecha negra cuando hay
+   texto; apagado cuando está vacío. Rojo queda para grabando/error. */
+.send-btn {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 0;
+  background: var(--nt-ink);
+  color: var(--nt-bg);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--nt-t-fast) var(--nt-ease),
+    color var(--nt-t-fast) var(--nt-ease);
+}
+
+.send-btn:hover:not(:disabled) {
+  background: var(--nt-surface-3);
+  color: var(--nt-ink);
+}
+
+.send-btn:disabled {
+  background: var(--nt-surface-3);
+  color: var(--nt-ink-3);
+  cursor: default;
 }

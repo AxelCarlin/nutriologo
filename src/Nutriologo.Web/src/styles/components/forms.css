@@ -1,4 +1,5 @@
-/* ========== FORMS (vistas de captura: perfil, mediciones, registro) ========== */
+/* ========== FORMS (vistas de captura: perfil, mediciones, registro) ==========
+   Labels = instrumento (mono caps). Inputs = borde hairline, foco monocromo. */
 
 .form-screen {
   display: flex;
@@ -14,41 +15,67 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .field label {
-  font: 500 11px var(--font);
-  color: var(--text-2);
+  font: 400 11px/12px var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--nt-ink-2);
 }
 
 .field input,
 .field select {
   height: 40px;
-  padding: 0 12px;
-  border-radius: 12px;
-  background: var(--surface-input);
-  border: 1px solid var(--border-default);
-  color: var(--text-1);
-  font: 400 13px var(--font);
+  padding: 0 16px;
+  border-radius: var(--radius-input);
+  background: transparent;
+  border: 1px solid var(--nt-line-strong);
+  color: var(--nt-ink);
+  font: 400 16px var(--nt-font-sans);
   outline: none;
   width: 100%;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.field input::placeholder {
+  color: var(--nt-ink-3);
+  font: 400 13px var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Chevron dibujado con gradientes (mismo truco que nothing-ui.css). */
+.field select {
+  background-image: linear-gradient(45deg, transparent 50%, var(--nt-ink) 50%),
+    linear-gradient(135deg, var(--nt-ink) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 17px, calc(100% - 15px) 17px;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 40px;
+}
+
+.field select option {
+  background: var(--nt-surface-1);
+  color: var(--nt-ink);
 }
 
 .field input:focus,
 .field select:focus {
-  border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(31, 107, 255, 0.14);
+  border-color: var(--nt-ink);
+  box-shadow: 0 0 0 1px var(--nt-ink);
 }
 
 .form-error {
-  font: 400 12px var(--font);
-  color: var(--state-danger);
+  font: 400 12px/16px var(--nt-font-mono);
+  color: var(--nt-red);
 }
 
 .form-ok {
-  font: 400 12px var(--font);
-  color: var(--state-success);
+  font: 400 12px/16px var(--nt-font-mono);
+  color: var(--nt-ok);
 }
 
 .form-actions {
@@ -62,18 +89,23 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 36px;
-  padding: 0 14px;
-  border-radius: var(--radius-pill);
-  background: var(--surface-glass);
-  border: 1px solid var(--border-default);
-  color: var(--text-1);
-  font: 600 12px/1 var(--font);
+  height: 40px;
+  padding: 0 16px;
+  border-radius: var(--radius-input);
+  background: transparent;
+  border: 1px solid var(--nt-ink);
+  color: var(--nt-ink);
+  font: 400 11px/12px var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
   cursor: pointer;
+  transition: background var(--nt-t-fast) var(--nt-ease),
+    color var(--nt-t-fast) var(--nt-ease);
 }
 
 .btn-ghost:hover {
-  background: var(--surface-glass-strong);
+  background: var(--nt-ink);
+  color: var(--nt-bg);
 }
 
 .item-row {
@@ -84,12 +116,12 @@
 .item-row select,
 .item-row input {
   height: 40px;
-  padding: 0 10px;
-  border-radius: 12px;
-  background: var(--surface-input);
-  border: 1px solid var(--border-default);
-  color: var(--text-1);
-  font: 400 13px var(--font);
+  padding: 0 12px;
+  border-radius: var(--radius-input);
+  background: transparent;
+  border: 1px solid var(--nt-line-strong);
+  color: var(--nt-ink);
+  font: 400 14px var(--nt-font-sans);
   outline: none;
   min-width: 0;
 }
@@ -102,43 +134,51 @@
   flex: 1;
 }
 
+/* Definition grid: pares etiqueta/dato con filete. */
 .result-grid {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 8px 14px;
-  padding: 14px;
+  gap: 0 var(--space-md);
+  padding: 0;
   border-radius: var(--radius-card);
-  background: var(--surface-card);
-  border: 1px solid var(--border-default);
-  font: 400 12.5px/1.45 var(--font);
+  background: var(--nt-surface-1);
+  border: 1px solid var(--nt-line);
+  font: 400 14px/1.45 var(--nt-font-sans);
 }
 
 .result-grid dt {
-  color: var(--text-3);
+  color: var(--nt-ink-2);
+  font: 400 11px/1.4 var(--nt-font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--nt-line);
 }
 
 .result-grid dd {
-  color: var(--text-1);
-  font-weight: 600;
+  color: var(--nt-ink);
+  font-family: var(--nt-font-mono);
+  padding: 14px 0;
+  border-bottom: 1px solid var(--nt-line);
+  text-align: right;
 }
 
+/* Listas con filete superior, sin tarjetas. */
 .data-list {
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  font: 400 12.5px/1.45 var(--font);
-  color: var(--text-2);
+  border-top: 1px solid var(--nt-line);
+  font: 400 14px/1.45 var(--nt-font-sans);
+  color: var(--nt-ink);
 }
 
 .data-list li {
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: var(--surface-glass);
-  border: 1px solid var(--border-subtle);
+  padding: 14px 0;
+  border-bottom: 1px solid var(--nt-line);
 }
 
 .section-title {
-  font-size: 15px;
+  font-size: 11px;
   margin-top: var(--space-md);
 }

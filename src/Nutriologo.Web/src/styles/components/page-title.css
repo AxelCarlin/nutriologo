@@ -1,0 +1,15 @@
+/* ========== TÍTULO DE PÁGINA ==========
+   Componente compartido. Las 4 vistas usaban h2 en Grotesk fino; Nothing
+   reserva dot-matrix para la identidad. Registrar y Objetivo ya lo tienen
+   inline; esta clase es la fuente única para que no vuelvan a divergir. */
+
+.titulo {
+  font: 400 clamp(28px, 4vw, 40px) / 1.2 var(--nt-font-dot);
+  text-transform: lowercase;
+  letter-spacing: 0;
+}
+
+/* Variante hero para dashboards con cifra dominante (Inicio). */
+.titulo--hero {
+  font-size: clamp(28px, 4vw, 44px);
+}

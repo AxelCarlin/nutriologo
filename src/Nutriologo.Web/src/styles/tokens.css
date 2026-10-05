@@ -1,53 +1,112 @@
-/* ========== AURENIX TOKENS (Nutriólogo) ==========
-   Fuente: Downloads/aurenix-gui-spec.md §2-3.
-   Solo variables. Sin selectores de componente aquí. */
+/* ========== NOTHING TOKENS (Nutriólogo) ==========
+   Basado en nothing-ui.css v1.0 (del zip Downloads/files(2).zip).
+   Los NOMBRES de variable legacy (--bg-base, --text-1, --accent...) se
+   conservan para no romper los componentes Vue: solo cambian los VALORES.
+   El prefijo --nt-* es el vocabulario nativo de Nothing. */
 
 :root {
-  --bg-base: #050b1a;
-  --bg-elevated: #0a1226;
-  --bg-chat: #070c18;
+  /* --- Tipografía: 3 voces --- */
+  --nt-font-dot: 'Doto', 'Space Mono', monospace;
+  --nt-font-sans: 'Space Grotesk', 'Helvetica Neue', Arial, sans-serif;
+  --nt-font-mono: 'Space Mono', 'JetBrains Mono', ui-monospace, monospace;
 
-  --surface-glass: rgba(255, 255, 255, 0.05);
-  --surface-glass-strong: rgba(255, 255, 255, 0.08);
-  --surface-card: rgba(14, 24, 48, 0.72);
-  --surface-bubble-user: rgba(255, 255, 255, 0.1);
-  --surface-input: rgba(10, 18, 38, 0.85);
-  --surface-tile: rgba(20, 32, 64, 0.7);
+  --font: var(--nt-font-sans);
 
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-default: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --border-focus: rgba(54, 128, 255, 0.7);
+  /* --- Color: negro OLED, monocromo, rojo como interrupción --- */
+  --nt-bg:        #000000;
+  --nt-surface-1: #0D0D0D;
+  --nt-surface-2: #161616;
+  --nt-surface-3: #202020;
+  --nt-ink:       #FFFFFF;
+  --nt-ink-2:     rgba(255, 255, 255, 0.66);
+  --nt-ink-3:     rgba(255, 255, 255, 0.40);
+  --nt-line:      rgba(255, 255, 255, 0.14);
+  --nt-line-strong: rgba(255, 255, 255, 0.32);
+  --nt-red:       #D71921;
+  --nt-ok:        #4CAF50;
+  --nt-warn:      #E8A317;
+  --nt-glass:     rgba(255, 255, 255, 0.06);
+  --nt-glass-blur: 16px;
 
-  --accent: #1f6bff;
-  --accent-hi: #3d86ff;
-  --accent-lo: #0a4fd6;
-  --accent-glow: rgba(31, 107, 255, 0.45);
-  --accent-gradient: linear-gradient(180deg, #2f7bff 0%, #1556e0 100%);
+  /* --- Alias legacy → Nothing --- */
+  --bg-base: var(--nt-bg);
+  --bg-elevated: var(--nt-surface-1);
+  --bg-chat: var(--nt-bg);
 
-  --text-1: #ffffff;
-  --text-2: rgba(255, 255, 255, 0.72);
-  --text-3: rgba(255, 255, 255, 0.48);
+  --surface-glass: var(--nt-glass);
+  --surface-glass-strong: rgba(255, 255, 255, 0.1);
+  --surface-card: var(--nt-surface-1);
+  --surface-bubble-user: var(--nt-ink);
+  --surface-input: var(--nt-surface-1);
+  --surface-tile: var(--nt-surface-2);
+
+  --border-subtle: var(--nt-line);
+  --border-default: var(--nt-line);
+  --border-strong: var(--nt-line-strong);
+  /* Foco monocromo: en Nothing el outline NO tiene color. */
+  --border-focus: var(--nt-ink);
+
+  --accent: var(--nt-red);
+  --accent-hi: var(--nt-red);
+  --accent-lo: var(--nt-red);
+  --accent-glow: rgba(215, 25, 33, 0.35);
+  /* Nada de gradiente azul: superficie plana invertida. */
+  --accent-gradient: var(--nt-ink);
+
+  --text-1: var(--nt-ink);
+  --text-2: var(--nt-ink-2);
+  --text-3: var(--nt-ink-3);
   --text-4: rgba(255, 255, 255, 0.28);
 
-  --state-success: #34d399;
-  --state-warning: #f5b544;
-  --state-danger: #f2555a;
+  --state-success: var(--nt-ok);
+  --state-warning: var(--nt-warn);
+  --state-danger: var(--nt-red);
 
-  --radius-card: 18px;
-  --radius-bubble: 16px;
-  --radius-input: 18px;
-  --radius-tile: 14px;
+  /* --- Forma: un solo vocabulario de radios ---
+     Antes cada pantalla.curio el suyo (chat pill 24, barra 6, cards 8) y eso
+     es justamente lo que rompe el lenguaje: 12px es el radio de campo,
+     8px el de card. */
+  --radius-card: 8px;
+  --radius-field: 12px;
+  --radius-bubble: 20px;
+  --radius-input: var(--radius-field);
+  --radius-tile: var(--radius-card);
   --radius-pill: 999px;
 
-  --blur-glass: 20px;
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --font: 'Inter', 'SF Pro Display', 'SF Pro Text', -apple-system, 'Segoe UI',
-    Roboto, sans-serif;
+  /* --- Movimiento mecánico: click, no swoosh --- */
+  --nt-ease: cubic-bezier(0.2, 0, 0, 1);
+  --nt-t-fast: 90ms;
+  --nt-t-base: 160ms;
+  --nt-t-slow: 320ms;
+  --blur-glass: var(--nt-glass-blur);
+  --ease: var(--nt-ease);
 
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 12px;
-  --space-lg: 16px;
-  --space-xl: 20px;
+  /* --- Espaciado base 8 --- */
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Eje de contenido compartido. Inicio usa el suyo (más ancho, es un
+     dashboard); Chat y el composer comparten --chat-w para que topbar,
+     orbe, mensajes y input alineen al mismo centro. */
+  --chat-w: 720px;
+  --form-w: 860px;
+  /* Dashboard de 2 columnas (Inicio y Objetivo comparten este eje). */
+  --dash-w: 1100px;
+}
+
+/* Modo claro: la misma gramática, PAPER en vez de OLED. */
+[data-theme='light'] {
+  --nt-bg:        #F4F4F2;
+  --nt-surface-1: #FFFFFF;
+  --nt-surface-2: #ECECEA;
+  --nt-surface-3: #E0E0DD;
+  --nt-ink:       #000000;
+  --nt-ink-2:     #585A5A;
+  --nt-ink-3:     rgba(0, 0, 0, 0.56);
+  --nt-line:      #E5E7EB;
+  --nt-line-strong: rgba(0, 0, 0, 0.40);
+  --nt-glass:     rgba(255, 255, 255, 0.55);
 }

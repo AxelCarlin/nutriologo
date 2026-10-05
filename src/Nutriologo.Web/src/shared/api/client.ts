@@ -1,8 +1,3 @@
-import { localStorage } from '@/shared/utils/localStorage'
-
-// Base URL for API calls
-const BASE_URL = '/api'
-
 /**
  * Fetches data from the API endpoint.
  * @param endpoint - The API endpoint path (e.g., '/balance?fecha=2024-01-15')
@@ -11,10 +6,10 @@ const BASE_URL = '/api'
  */
 export async function apiFetch<T>(endpoint: string, options?: {
   headers?: Record<string, string>
-  method?: 'GET' | 'POST'
+  method?: 'GET' | 'POST' | 'DELETE'
   body?: any
 }): Promise<T> {
-  const url = `${BASE_URL}${endpoint}`
+  const url = `/api${endpoint}`
   
   const defaultHeaders: HeadersInit = {
     'Content-Type': 'application/json',
@@ -22,7 +17,7 @@ export async function apiFetch<T>(endpoint: string, options?: {
   }
 
   // Add JWT token if available
-  const token = localStorage.getItem('nutriologo_token')
+  const token = window.localStorage.getItem('nutriologo_token')
   if (token) {
     defaultHeaders['Authorization'] = `Bearer ${token}`
   }
@@ -30,7 +25,10 @@ export async function apiFetch<T>(endpoint: string, options?: {
   const config: RequestInit = {
     method: options?.method || 'GET',
     headers: defaultHeaders,
-    ...(options?.body ? { body: JSON.stringify(options.body) } : {}),
+    // El body llega ya serializado desde el caller (JSON.stringify).
+    // Re-serializar aqui producia un string JSON quoted que el backend
+    // no podia deserializar.
+    ...(options?.body ? { body: options.body } : {}),
   }
 
   const response = await fetch(url, config)
@@ -39,8 +37,8 @@ export async function apiFetch<T>(endpoint: string, options?: {
     // Handle 401 - token expired or invalid
     if (response.status === 401) {
       // Clear invalid token
-      localStorage.removeItem('nutriologo_token')
-      localStorage.removeItem('nutriologo_nombre')
+      window.localStorage.removeItem('nutriologo_token')
+      window.localStorage.removeItem('nutriologo_nombre')
       // Redirect to login
       window.location.href = '/login'
     }
@@ -51,15 +49,22 @@ export async function apiFetch<T>(endpoint: string, options?: {
     }
   }
 
+  // 204 Sin contenido (p.ej. DELETE): no hay JSON que parsear.
+  if (response.status === 204) return null as T
+
   return response.json()
 }
 
-// Helper function to check if user is authenticated
+/**
+ * Checks if user is authenticated via JWT token.
+ */
 export function isAuthenticated(): boolean {
-  return localStorage.getItem('nutriologo_token') !== null
+  return window.localStorage.getItem('nutriologo_token') !== null
 }
 
-// Helper function to get user name
+/**
+ * Gets the user name from localStorage.
+ */
 export function getUserName(): string | null {
-  return localStorage.getItem('nutriologo_nombre') || null
+  return window.localStorage.getItem('nutriologo_nombre') || null
 }
