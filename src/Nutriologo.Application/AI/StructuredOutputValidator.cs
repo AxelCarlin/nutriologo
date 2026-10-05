@@ -30,6 +30,7 @@ public static class StructuredOutputValidator
                 "registrar_medicion" or "RegistrarMedicion" => AiIntent.RegistrarMedicion,
                 "crear_objetivo" or "CrearObjetivo" => AiIntent.CrearObjetivo,
                 "consultar_balance" or "ConsultarBalance" => AiIntent.ConsultarBalance,
+                "listar_comidas" or "ListarComidas" => AiIntent.ListarComidas,
                 _ => AiIntent.Desconocida,
             };
 

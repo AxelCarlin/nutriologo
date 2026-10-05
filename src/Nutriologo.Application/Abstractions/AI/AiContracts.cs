@@ -2,7 +2,7 @@ namespace Nutriologo.Application.Abstractions.AI;
 
 public enum ConfidenceLevel { Alta, Media, Baja, RequiereAclaracion }
 
-public enum AiIntent { RegistrarComida, RegistrarMedicion, CrearObjetivo, ConsultarBalance, Desconocida }
+public enum AiIntent { RegistrarComida, RegistrarMedicion, CrearObjetivo, ConsultarBalance, ListarComidas, Desconocida }
 
 /// <summary>Candidato estructurado propuesto por IA. Nunca es verdad numérica final.</summary>
 public record FoodCandidate(
@@ -13,7 +13,17 @@ public record FoodCandidate(
     decimal Confianza,
     IReadOnlyList<string> Incertidumbres);
 
-public record ChatRequest(string Texto, int? IdUsuario = null);
+public record ChatTurn(string Rol, string Texto);
+/// <summary>
+/// Entrada al intérprete. <paramref name="ComidaEnCurso"/> lleva el estado del
+/// form para que el prompt incluya un bloque estructurado en vez de depender
+/// del historial crudo: es lo que permite que un 7B resuelva la referencia.
+/// </summary>
+public record ChatRequest(
+    string Texto,
+    int? IdUsuario = null,
+    IReadOnlyList<ChatTurn>? Historial = null,
+    IReadOnlyList<(string Nombre, decimal? Cantidad, string? Unidad)>? ComidaEnCurso = null);
 public record ChatInterpretation(AiIntent Intent, IReadOnlyList<FoodCandidate> Candidatos, IReadOnlyList<string> Incertidumbres);
 
 public record VisionRequest(string RutaImagen, string? MimeType = null);
