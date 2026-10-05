@@ -1,0 +1,23 @@
+# Contexto de build: solo lo que la imagen necesita.
+# Sin esto, `COPY . .` arrastra bin/obj de los 4 proyectos de test y los
+# 1.4 GB de .cache, y el build de la imagen agota el disco (40 GB totales,
+# 25 GB de modelos de Ollama).
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+**/node_modules/
+**/dist/
+**/.git/
+**/*.user
+**/*.db
+**/*.dbmdl
+tests/
+docs/
+deploy/*.md
+scripts/
+.env
+.env.*
+.gitignore
+NutriologoDB.sql
