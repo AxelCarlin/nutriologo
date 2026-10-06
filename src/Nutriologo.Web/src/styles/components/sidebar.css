@@ -1,14 +1,85 @@
 /* ═══════════════════════════════════════════════════════════════
-   SIDEBAR — estilo Nothing
+   SHELL + SIDEBAR — estilo Nothing
    ═══════════════════════════════════════════════════════════════
+   El shell vive aquí porque su única columna real es esta: sin
+   `.app-shell` como flex, `.sb` y `.app-content` se apilan como bloques
+   y el contenido cae 900px debajo del riel.
+
    Reglas que este archivo respeta:
-   · Encabezado y pie miden exactamente 76px, con borde de 1px.
-   · Un único margen horizontal de 20px en TODAS las zonas.
+   · Encabezado 76px con borde inferior. Pie 76px SIN borde (solo espacio).
+   · Una sola columna a 20px: contenedor con 8px de padding, ítems con
+     12px de padding interno → icono y texto caen a 20px.
    · Ítems de 44px, píldora 999px, sin cajas cuadradas.
    · Rojo SOLO para algo pendiente (nunca "estás aquí").
    · Sin sombras, blur ni gradientes.
    · La píldora del activo se desliza; nada más se mueve.
+   · Jerarquía por escala y peso, no solo por color.
    ═══════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════ SHELL ═══════════════════ */
+
+.app-shell {
+  display: flex;
+  min-height: 100svh;
+}
+
+.app-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* El topbar comparte la medida del encabezado del sidebar: 76px + 1px de
+   borde. Así su línea cae en el MISMO y que la del riel, y esa única
+   coincidencia es la que sostiene la vista. */
+.app-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 76px;
+  flex: none;
+  padding: 0 var(--sb-pad-x, 20px);
+  border-bottom: 1px solid var(--bd);
+  background: var(--bg);
+}
+
+.app-topbar__title {
+  font: 400 11px/1 var(--nd-font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--t2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* El botón de menú solo existe cuando el riel no está. */
+.app-topbar > .btn-icon {
+  display: none;
+}
+
+.scrim {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .app-topbar > .btn-icon {
+    display: grid;
+  }
+
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 15;
+    border: 0;
+    background: color-mix(in srgb, var(--bg) 72%, transparent);
+  }
+}
 
 .sb {
   --sb-w: 240px;
@@ -16,6 +87,7 @@
   --sb-pad-x: 20px;
   --sb-item-h: 44px;
   --sb-mono: 28px;
+  --sb-nav-pad: 8px;
 
   width: var(--sb-w);
   flex-shrink: 0;
@@ -42,6 +114,9 @@
   border-bottom: 1px solid var(--bd);
 }
 
+/* Monograma en Space Mono, no Doto: los glifos de Doto a 11–14px no se
+   leen (la N sale como un símbolo con un punto encima). Doto queda para
+   el wordmark, donde sí funciona. */
 .sb__mono {
   width: var(--sb-mono);
   height: var(--sb-mono);
@@ -49,7 +124,7 @@
   display: grid;
   place-items: center;
   border: 1px solid var(--t1);
-  font: 800 14px/1 var(--nd-font-dot);
+  font: 700 14px/1 var(--nd-font-mono);
   color: var(--t1);
 }
 
@@ -69,15 +144,18 @@
 .sb__acts {
   display: grid;
   gap: 6px;
-  padding: 12px 12px 0;
+  padding: 12px var(--sb-nav-pad) 0;
 }
 
+/* 11px y no 12px: esta píldora lleva su propio borde de 1px, y ese borde
+   ocupa el primer píxel del padding. Con 12 el icono caía a 21 y la columna
+   de 20 se partía en dos. El resto de ítems, sin borde, van a 12. */
 .sb__act {
   display: flex;
   align-items: center;
   gap: 12px;
   height: 40px;
-  padding: 0 13px;
+  padding: 0 11px;
   border: 1px solid var(--bd2);
   border-radius: 999px;
   background: none;
@@ -98,10 +176,8 @@
 .sb__kc {
   margin-left: auto;
   font: 400 10px/1 var(--nd-font-mono);
-  color: var(--t3);
-  border: 1px solid var(--bd);
-  border-radius: 6px;
-  padding: 1px 6px;
+  letter-spacing: .08em;
+  color: var(--t2);
   flex-shrink: 0;
 }
 
@@ -113,7 +189,7 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 8px 12px;
+  padding: 8px var(--sb-nav-pad);
   scrollbar-width: thin;
   scrollbar-color: var(--bd2) transparent;
 }
@@ -121,9 +197,13 @@
 .sb__nav::-webkit-scrollbar { width: 6px; }
 .sb__nav::-webkit-scrollbar-thumb { background: var(--bd2); border-radius: 999px; }
 
+/* Jerarquía por escala y peso: las etiquetas de grupo son más pequeñas,
+   en Space Grotesk (no mono), y con peso 400. Los ítems son más grandes,
+   en mono, con peso 500. Así se distinguen por tipografía, no solo por
+   brillo. */
 .sb__grp {
-  font: 400 11px/1 var(--nd-font-mono);
-  letter-spacing: .08em;
+  font: 400 10px/1 'Space Grotesk', sans-serif;
+  letter-spacing: .04em;
   text-transform: uppercase;
   color: var(--t3);
   padding: 16px 12px 8px;
@@ -135,8 +215,8 @@
 /* La píldora: absoluta dentro del nav, se desliza con transform */
 .sb__th {
   position: absolute;
-  left: 12px;
-  right: 12px;
+  left: var(--sb-nav-pad);
+  right: var(--sb-nav-pad);
   top: 0;
   height: var(--sb-item-h);
   border-radius: 999px;
@@ -154,11 +234,11 @@
   align-items: center;
   gap: 12px;
   height: var(--sb-item-h);
-  padding: 0 13px;
+  padding: 0 12px;
   border-radius: 999px;
   color: var(--t2);
   text-decoration: none;
-  font: 400 11px/1 var(--nd-font-mono);
+  font: 500 11px/1 var(--nd-font-mono);
   letter-spacing: .08em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -284,7 +364,7 @@
   position: relative;
   height: 34px;
   line-height: 34px;
-  padding: 0 13px 0 43px;
+  padding: 0 12px 0 43px;
   border-radius: 8px;
   font: 300 14px/34px 'Space Grotesk', sans-serif;
   letter-spacing: 0;
@@ -317,7 +397,6 @@
   flex: none;
   margin: 0 var(--sb-pad-x) 16px;
   padding-top: 16px;
-  border-top: 1px solid var(--bd);
   white-space: nowrap;
 }
 
@@ -327,10 +406,6 @@
   text-transform: uppercase;
   color: var(--t3);
   margin: 0;
-}
-
-.sb__lab--vacio {
-  margin-top: 8px;
 }
 
 .sb__num {
@@ -359,6 +434,26 @@
 
 .sb__seg i.sb__seg--on {
   background: var(--t1);
+}
+
+/* Enlace "Definir objetivo": reemplaza a [SIN OBJETIVO] como texto muerto.
+   Es el mismo destino que el punto rojo de Objetivo. */
+.sb__sin {
+  display: inline-block;
+  margin-top: 8px;
+  font: 400 11px/1 var(--nd-font-mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--t2);
+  text-decoration: none;
+  border-bottom: 1px solid var(--bd2);
+  padding-bottom: 2px;
+  transition: color .2s, border-color .2s;
+}
+
+.sb__sin:hover {
+  color: var(--t1);
+  border-color: var(--t1);
 }
 
 .sb__mac {
@@ -426,6 +521,8 @@
 
 /* ═══════════════════ PIE 76px ═══════════════════ */
 
+/* Sin borde superior: la única línea horizontal que debe coincidir con el
+   chat es la del encabezado. El pie se separa solo con espacio. */
 .sb__ft {
   height: 76px;
   flex: none;
@@ -433,20 +530,36 @@
   align-items: center;
   gap: 10px;
   padding: 0 12px 0 var(--sb-pad-x);
-  border-top: 1px solid var(--bd);
+}
+
+.sb__perfil {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.sb__perfil:focus-visible {
+  outline: 2px solid var(--t1);
+  outline-offset: -2px;
 }
 
 .sb__who {
-  flex: 1;
   min-width: 0;
   line-height: 1.2;
   overflow: hidden;
 }
 
+/* 11px, no 12: Space Mono mayúscula mide ~0.6em por glifo, y a 12px
+   "MEDIDOR AXEL UNO" se pasaba de los 124px disponibles y se cortaba.
+   Con 11px entra un nombre real completo sin recortar. */
 .sb__who-nombre {
   display: block;
-  font: 400 12px/1.4 var(--nd-font-mono);
-  letter-spacing: .06em;
+  font: 400 11px/1.4 var(--nd-font-mono);
+  letter-spacing: .04em;
   text-transform: uppercase;
   color: var(--t1);
   overflow: hidden;
@@ -489,22 +602,13 @@
   justify-content: center;
 }
 
-/* En riel las etiquetas se ocultan con clip (no display:none) para que el
-   lector de pantalla siga anunciando el nombre de cada ítem. */
-.sb--rail .sb__lb,
-.sb--rail .sb__cnt {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-}
-
 .sb--rail .sb__grp,
 .sb--rail .sb__wm,
 .sb--rail .sb__acts,
 .sb--rail .sb__hoy,
 .sb--rail .sb__who,
+.sb--rail .sb__lb,
+.sb--rail .sb__cnt,
 .sb--rail .sb__bd {
   display: none;
 }
@@ -524,8 +628,8 @@
 }
 
 .sb--rail .sb__th {
-  left: 12px;
-  right: 12px;
+  left: var(--sb-nav-pad);
+  right: var(--sb-nav-pad);
 }
 
 /* ═══════════════════ CAJÓN MÓVIL (< 640px) ═══════════════════ */

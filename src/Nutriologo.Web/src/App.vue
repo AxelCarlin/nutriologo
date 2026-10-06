@@ -1,20 +1,28 @@
 <template>
   <div v-if="isAuthed()" class="app-shell">
-    <div v-if="drawer" class="scrim" @click="drawer = false"></div>
+    <div v-if="drawer" class="scrim" @click="cerrarDrawer()"></div>
     <Sidebar
       ref="sidebarRef"
       :open="drawer"
       :expanded="true"
       :rail="rail"
       :drawer="drawer"
-      @navigate="drawer = false"
+      :inert="cajon && !drawer"
+      @navigate="cerrarDrawer(false)"
       @logout="salir"
-      @nueva-conversacion="nuevaConversacion"
       @abrir-paleta="paletaAbierta = true"
     />
     <div class="app-content">
       <div class="app-topbar">
-        <button class="btn-icon" type="button" aria-label="Abrir menú" :aria-expanded="drawer" aria-controls="sidebar" @click="drawer = true">
+        <button
+          ref="botonMenu"
+          class="btn-icon"
+          type="button"
+          aria-label="Abrir menú"
+          :aria-expanded="drawer"
+          aria-controls="sb-raiz"
+          @click="abrirDrawer"
+        >
           <PanelLeft :size="18" :stroke-width="1.5" />
         </button>
         <span class="app-topbar__title">{{ tituloPantalla }}</span>
@@ -82,10 +90,58 @@ const router = useRouter()
 const route = useRoute()
 const drawer = ref(false)
 const rail = ref(false)
+const cajon = ref(false)
 const paletaAbierta = ref(false)
 const paletaQuery = ref('')
 const paletaSeleccionada = ref(0)
 const paletaInputRef = ref<HTMLInputElement | null>(null)
+const botonMenu = ref<HTMLButtonElement | null>(null)
+
+// ════════════════════════════════════════════════════════════
+// CAJÓN MÓVIL (< 640px)
+// ════════════════════════════════════════════════════════════
+// El riel de 272px sale del lienzo con translateX(-100%), pero sus
+// enlaces siguen siendo tabulables: sin `inert` el teclado entra en un
+// menú invisible. Abierto, el foco entra, queda atrapado y Esc lo
+// devuelve al botón que lo abrió.
+
+const FOCALIZABLES =
+  'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+
+/** Elementos focables realmente visibles dentro del cajón. */
+function focablesCajon(): HTMLElement[] {
+  const raiz = document.getElementById('sb-raiz')
+  if (!raiz) return []
+  return [...raiz.querySelectorAll<HTMLElement>(FOCALIZABLES)].filter(e => e.offsetParent !== null)
+}
+
+function abrirDrawer() {
+  drawer.value = true
+  void nextTick(() => focablesCajon()[0]?.focus())
+}
+
+function cerrarDrawer(devolverFoco = true) {
+  if (!drawer.value) return
+  drawer.value = false
+  // El foco solo vuelve si el cajón estaba abierto: si se cierra al navegar,
+  // devolverlo al botón sacaría al usuario de la vista a la que fue.
+  if (devolverFoco) void nextTick(() => botonMenu.value?.focus())
+}
+
+function atraparFocoEnCajon(e: KeyboardEvent) {
+  if (e.key !== 'Tab' || !drawer.value) return
+  const f = focablesCajon()
+  if (!f.length) return
+  const primero = f[0]!
+  const ultimo = f[f.length - 1]!
+  if (e.shiftKey && document.activeElement === primero) {
+    e.preventDefault()
+    ultimo.focus()
+  } else if (!e.shiftKey && document.activeElement === ultimo) {
+    e.preventDefault()
+    primero.focus()
+  }
+}
 
 const TITULOS: Record<string, string> = {
   home: 'INICIO',
@@ -106,6 +162,10 @@ const tituloPantalla = computed(() =>
 
 function sincronizarRiel() {
   rail.value = window.innerWidth <= 900
+  cajon.value = window.innerWidth <= 640
+  // Al pasar a escritorio el cajón deja de tener sentido: dejarlo abierto
+  // dejaría el `inert` puesto sobre un riel que sí está visible.
+  if (!cajon.value) drawer.value = false
 }
 
 sincronizarRiel()
@@ -175,22 +235,23 @@ function manejadorPaleta(e: KeyboardEvent) {
   }
 }
 
-// Atajos globales: ⌘K / Ctrl+K abre la paleta
+// Atajos globales: Esc cierra el cajón; ⌘K / Ctrl+K alterna la paleta.
 window.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && drawer.value) {
+    e.preventDefault()
+    cerrarDrawer()
+    return
+  }
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
     e.preventDefault()
     paletaAbierta.value ? cerrarPaleta() : abrirPaleta()
   }
 })
+document.addEventListener('keydown', atraparFocoEnCajon)
 
 // ════════════════════════════════════════════════════════════
 // ACCIONES DEL SIDEBAR
 // ════════════════════════════════════════════════════════════
-
-function nuevaConversacion() {
-  void router.push('/chat')
-  drawer.value = false
-}
 
 function salir() {
   logout()

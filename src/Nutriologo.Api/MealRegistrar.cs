@@ -29,6 +29,21 @@ public static class MealRegistrar
             if (!tipoExiste) idTipoComida = null;
         }
 
+        // TODAS las unidades se resuelven ANTES de tocar la base. Antes se
+        // insertaba la comida y se guardaba, y si una unidad no existia se
+        // retornaba false dejando la fila a medias: un registro rechazado
+        // contaba como comida del dia (con 0 kcal) en /panel, /comidas,
+        // Balance y el contador del sidebar. Un rechazo no deja rastro.
+        var unidades = new int[items.Count];
+        for (int i = 0; i < items.Count; i++)
+        {
+            var unidad = await db.UnidadesMedida
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Codigo == items[i].Unidad.ToUpperInvariant());
+            if (unidad is null) return new(false, false, $"Unidad desconocida: {items[i].Unidad}", null);
+            unidades[i] = unidad.Id;
+        }
+
         var comida = new RegistroComida(idUsuario, fechaConsumo, nombre, idTipoComida);
         db.RegistrosComida.Add(comida);
         await db.SaveChangesAsync();
@@ -37,8 +52,7 @@ public static class MealRegistrar
         for (int i = 0; i < items.Count; i++)
         {
             var it = items[i];
-            var unidad = await db.UnidadesMedida.FirstOrDefaultAsync(u => u.Codigo == it.Unidad.ToUpperInvariant());
-            if (unidad is null) return new(false, false, $"Unidad desconocida: {it.Unidad}", null);
+            var idUnidad = unidades[i];
 
             var alimentoFuente = await db.AlimentosFuente.FirstOrDefaultAsync(af => af.IdAlimento == v.Alimentos[i].IdAlimento);
             decimal? kcal = null;
@@ -46,7 +60,7 @@ public static class MealRegistrar
             // La composicion nutricional esta declarada sobre una base (habitualmente
             // 100 g). Antes se escalaba por it.Cantidad SIN convertir de la unidad del
             // usuario a esa base: "2 PIEZA" se trataba como 2 g. Convierte primero.
-            var gramos = await AGramosAsync(db, v.Alimentos[i].IdAlimento, unidad.Id, it.Cantidad);
+            var gramos = await AGramosAsync(db, v.Alimentos[i].IdAlimento, idUnidad, it.Cantidad);
 
             if (alimentoFuente is not null && gramos is not null)
             {
@@ -67,7 +81,7 @@ public static class MealRegistrar
                 }
             }
 
-            db.AlimentosRegistroComida.Add(new AlimentoRegistroComida(comida.Id, v.Alimentos[i].IdAlimento, unidad.Id, it.Cantidad, gramos, kcal));
+            db.AlimentosRegistroComida.Add(new AlimentoRegistroComida(comida.Id, v.Alimentos[i].IdAlimento, idUnidad, it.Cantidad, gramos, kcal));
             if (kcal is not null) totalKcal = (totalKcal ?? 0m) + kcal;
         }
 

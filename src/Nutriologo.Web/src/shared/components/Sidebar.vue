@@ -1,5 +1,7 @@
 <template>
   <aside
+    id="sb-raiz"
+    ref="sbRef"
     class="sb"
     :class="{ 'sb--rail': rail, 'sb--drawer': drawer }"
     aria-label="Navegación principal"
@@ -11,16 +13,13 @@
     </header>
 
     <!-- ══════ ACCIONES RÁPIDAS ══════ -->
+    <!-- "Nueva conversación" se quitó: el chat ya tiene [NUEVA] y eran dos
+         controles para lo mismo. Buscar queda como la única acción. -->
     <div v-if="!rail" class="sb__acts">
-      <button class="sb__act" type="button" @click="$emit('nueva-conversacion')">
-        <Plus :size="18" :stroke-width="1.5" />
-        <span class="sb__lb">Nueva conversación</span>
-        <kbd class="sb__kc" aria-hidden="true">N</kbd>
-      </button>
       <button class="sb__act" type="button" @click="$emit('abrir-paleta')">
         <Search :size="18" :stroke-width="1.5" />
         <span class="sb__lb">Buscar</span>
-        <kbd class="sb__kc" aria-hidden="true">⌘K</kbd>
+        <kbd class="sb__kc" aria-hidden="true">{{ atajoBuscar }}</kbd>
       </button>
     </div>
 
@@ -35,14 +34,21 @@
         :to="item.to"
         class="sb__a"
         :title="item.label"
-        :aria-label="item.label"
+        :aria-label="item.label + (item.to === '/registrar' && contadorComidas > 0 ? `, ${contadorTitulo}` : '')"
         @click="irA"
       >
         <component :is="item.icon" :size="18" :stroke-width="1.5" />
         <span class="sb__lb">{{ item.label }}</span>
-        <span v-if="item.to === '/registrar' && contadorComidas > 0" class="sb__cnt">
-          {{ contadorComidas }}<span class="sb__sr"> comidas hoy</span>
-        </span>
+        <!-- El badge es adorno: el nombre accesible del enlace lo lleva en su
+             aria-label (un aria-label explícito pisa el contenido, así que
+             meter el texto aquí dentro no lo anunciaba). El criterio es HOY,
+             el mismo día que suman las kcal de arriba. -->
+        <span
+          v-if="item.to === '/registrar' && contadorComidas > 0"
+          class="sb__cnt"
+          :title="contadorTitulo"
+          aria-hidden="true"
+        >{{ contadorComidas }}</span>
       </RouterLink>
 
       <!-- Historial de conversaciones: el chevron es HERMANO del enlace -->
@@ -107,7 +113,9 @@
 
     <!-- ══════ INSTRUMENTO HOY ══════ -->
     <div v-if="!rail && panel" class="sb__hoy" role="group" :aria-label="hoyAria">
-      <p class="sb__lab">Hoy · kcal</p>
+      <p class="sb__lab">Consumido</p>
+      <!-- El consumido real se muestra SIEMPRE: aunque no haya meta, lo que se
+           comió se conoce. [SIN OBJETIVO] va solo donde iría la barra. -->
       <div class="sb__num">
         {{ panel.caloriasConsumidas.toLocaleString('es-MX') }}<small v-if="panel.metaCalorica"> / {{ panel.metaCalorica.toLocaleString('es-MX') }}</small>
       </div>
@@ -119,7 +127,11 @@
           :style="{ transitionDelay: `${i * 45}ms` }"
         />
       </div>
-      <p v-else class="sb__lab sb__lab--vacio">[SIN OBJETIVO]</p>
+      <!-- Callejón sin salida: es el enlace a definir objetivo, igual que el
+           punto rojo de Objetivo. -->
+      <RouterLink v-else to="/objetivo" class="sb__sin" @click="irA()">
+        Definir objetivo
+      </RouterLink>
 
       <div v-if="macrosConDatos.length" class="sb__mac" role="group" aria-label="Macronutrientes">
         <div v-for="m in macrosConDatos" :key="m.codigo">
@@ -130,7 +142,7 @@
       </div>
 
       <div v-if="racha > 0" class="sb__rch" role="img" :aria-label="`Racha de ${racha} días`">
-        <span class="sb__lab">Racha {{ racha }}</span>
+        <span class="sb__lab">{{ racha }} {{ racha === 1 ? 'día' : 'días' }}</span>
         <i
           v-for="i in 7"
           :key="i"
@@ -141,21 +153,15 @@
 
     <!-- ══════ PIE 76px ══════ -->
     <footer class="sb__ft">
-      <span class="sb__mono sb__mono--sm" aria-hidden="true">{{ iniciales }}</span>
-      <div v-if="!rail" class="sb__who">
-        <span class="sb__who-nombre">{{ userName }}</span>
-        <span class="sb__lab">Local</span>
-      </div>
-      <button
-        v-if="!rail"
-        class="sb__ib"
-        type="button"
-        aria-label="Perfil"
-        title="Perfil"
-        @click="irA('/perfil')"
-      >
-        <User :size="18" :stroke-width="1.5" />
-      </button>
+      <!-- Monograma y nombre son UN solo enlace a Perfil: así el nombre entra
+           completo y no hace falta un botón icono aparte que le quite espacio. -->
+      <RouterLink to="/perfil" class="sb__perfil" @click="irA()">
+        <span class="sb__mono sb__mono--sm" aria-hidden="true">{{ iniciales }}</span>
+        <span v-if="!rail" class="sb__who">
+          <span class="sb__who-nombre">{{ userName }}</span>
+          <span class="sb__lab">Local</span>
+        </span>
+      </RouterLink>
       <button
         class="sb__ib"
         type="button"
@@ -172,13 +178,13 @@
 <script setup lang="ts">
 import {
   BarChart3,
+  Home,
   LogOut,
   MessageCircle,
-  Plus,
   Ruler,
   Search,
   Target,
-  User,
+  UtensilsCrossed,
 } from 'lucide-vue-next'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -186,7 +192,11 @@ import { apiFetch } from '../../shared/api/client'
 import { userName } from '../../shared/api/auth'
 
 const props = defineProps<{ open: boolean; expanded: boolean; rail: boolean; drawer: boolean }>()
-const emit = defineEmits(['navigate', 'logout', 'nueva-conversacion', 'abrir-paleta'])
+const emit = defineEmits(['navigate', 'logout', 'abrir-paleta'])
+
+// ⌘K solo existe en Mac: en Windows/Linux el atajo es Ctrl K.
+const esMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+const atajoBuscar = esMac ? '⌘K' : 'Ctrl K'
 
 const router = useRouter()
 const route = useRoute()
@@ -195,10 +205,12 @@ const route = useRoute()
 // NAVEGACIÓN
 // ════════════════════════════════════════════════════════════
 
+// Chat NO está en este grupo: vive en su propia fila con el chevron del
+// historial. Tenerlo aquí también renderizaba una segunda fila invisible con
+// aria-current duplicado (un lector de pantalla anunciaba dos páginas actuales).
 const grupoHoy = [
-  { to: '/', label: 'Inicio', icon: BarChart3 },
-  { to: '/chat', label: 'Chat', icon: MessageCircle },
-  { to: '/registrar', label: 'Registrar', icon: Plus },
+  { to: '/', label: 'Inicio', icon: Home },
+  { to: '/registrar', label: 'Registrar', icon: UtensilsCrossed },
 ]
 
 const grupoSeguimiento = computed(() => [
@@ -213,6 +225,7 @@ const grupoSeguimiento = computed(() => [
 
 const navRef = ref<HTMLElement | null>(null)
 const thRef = ref<HTMLElement | null>(null)
+const sbRef = ref<HTMLElement | null>(null)
 
 function colocarPildora(inmediato = false) {
   const nav = navRef.value
@@ -304,10 +317,24 @@ interface Panel {
   tieneObjetivo: boolean
   macros: Record<string, number>
   serie: { dia: string; kcal: number }[]
+  // El contador de Registrar sale de AQUÍ y no de un segundo GET /comidas:
+  // el panel ya trae las comidas del día, y dos endpoints distintos
+  // permitían mostrar 0 kcal junto a 6 comidas, que es justo el defecto
+  // reportado.
+  comidas: { id: number }[]
 }
 
 const panel = ref<Panel | null>(null)
-const contadorComidas = ref(0)
+
+/** Comidas de HOY. Único origen: `panel.comidas`. */
+const contadorComidas = computed(() => panel.value?.comidas?.length ?? 0)
+
+/** "1 comida hoy" / "6 comidas hoy". */
+const contadorTexto = computed(() =>
+  contadorComidas.value === 1 ? 'comida hoy' : 'comidas hoy',
+)
+
+const contadorTitulo = computed(() => `${contadorComidas.value} ${contadorTexto.value}`)
 
 const MACROS: { codigo: string; nombre: string }[] = [
   { codigo: 'PROTEINA', nombre: 'Proteína' },
@@ -370,12 +397,9 @@ async function cargarPanel() {
 }
 
 async function cargarContador() {
-  try {
-    const items = await apiFetch<unknown[]>('/comidas')
-    contadorComidas.value = Array.isArray(items) ? items.length : 0
-  } catch {
-    contadorComidas.value = 0
-  }
+  // Se conserva por API pública (App.vue la invoca tras registrar), pero ya
+  // no hace su propio fetch: recarga el panel y el contador se deriva de ahí.
+  await cargarPanel()
 }
 
 // ════════════════════════════════════════════════════════════
@@ -404,7 +428,7 @@ async function cargarNombre() {
 
 onMounted(async () => {
   colocarPildora(true)
-  await Promise.all([cargarPanel(), cargarContador(), cargarConversaciones(), cargarNombre()])
+  await Promise.all([cargarPanel(), cargarConversaciones(), cargarNombre()])
   await nextTick()
   colocarPildora(true)
 })
@@ -426,6 +450,10 @@ window.addEventListener('resize', () => {
   resizeTimer = setTimeout(() => colocarPildora(), 120)
 })
 
-// Exponer recarga para que App.vue la llame al registrar una comida.
-defineExpose({ recargar: () => { void cargarPanel(); void cargarContador() } })
+// Exponer recarga para que App.vue la llame al registrar una comida, y la
+// raíz del cajón para que pueda atrapar el foco dentro de ella.
+defineExpose({
+  recargar: () => { void cargarPanel(); void cargarContador() },
+  elemento: () => sbRef.value,
+})
 </script>
