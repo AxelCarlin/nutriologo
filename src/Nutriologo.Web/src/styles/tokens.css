@@ -150,6 +150,13 @@
   /* ===== SAFE AREA ===== */
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
+  /* ===== ALTO DE LA BARRA SUPERIOR DEL SHELL =====
+     Mismo contrato que el encabezado del riel (.sb__hd): las dos líneas caen en
+     y=75. Vive en un token porque el chat lo RESTA de su 100dvh: pidiendo el
+     alto completo debajo de la barra, el documento quedaba 76px más alto que la
+     ventana. */
+  --shell-top: 76px;
+
   /* ===== VOCABULARIO CHAT (Nothing chat) =====
      Nombres cortos del contrato de diseño del chat. El rojo queda RESERVADO
      para interrupción: estado `error`, X del indicador y líneas [ERROR].

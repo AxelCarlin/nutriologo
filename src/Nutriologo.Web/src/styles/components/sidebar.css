@@ -40,7 +40,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  height: 76px;
+  height: var(--shell-top);
   flex: none;
   padding: 0 var(--sb-pad-x, 20px);
   border-bottom: 1px solid var(--bd);
@@ -105,7 +105,9 @@
 /* ═══════════════════ ENCABEZADO 76px ═══════════════════ */
 
 .sb__hd {
-  height: 76px;
+  /* El token, no el número: las dos líneas (riel y barra superior) tienen que
+     caer en el mismo y, y el chat resta ese y a su alto. */
+  height: var(--shell-top);
   flex: none;
   display: flex;
   align-items: center;

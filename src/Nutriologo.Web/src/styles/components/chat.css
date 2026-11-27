@@ -13,8 +13,14 @@
 .chat {
   display: grid;
   grid-template-rows: auto 1fr auto;
-  height: 100dvh;
-  max-height: 100dvh;
+  /* 100dvh NO. El chat vive DEBAJO de la barra superior del shell (76px), así
+     que pedir el alto completo hacía el documento 76px más alto que la ventana.
+     El navegador entonces scrolleaba solo —por el autofoco del campo— y el
+     encabezado del chat, con el indicador 5×5, quedaba ARRIERA del borde
+     superior: el indicador no faltaba, estaba fuera de pantalla. Restarlo hace
+     que el documento mida justo lo que la ventana muestra. */
+  height: calc(100dvh - var(--shell-top));
+  max-height: calc(100dvh - var(--shell-top));
   overflow: hidden;
   background: var(--bg);
   color: var(--t1);
@@ -33,7 +39,9 @@
 /* ═══════════════════ ENCABEZADO ═══════════════════ */
 
 .chat__cabecera {
-  border-bottom: 1px solid var(--bd);
+  /* Atenuamos el borde para que no forme una doble línea con el borde
+     superior del composer. Nothing prefiere una separación más suave. */
+  border-bottom: 1px solid color-mix(in srgb, var(--bd) 40%, transparent);
   background: var(--bg);
   padding-block: 14px;
 }
@@ -75,13 +83,34 @@
   flex: 0 0 auto;
 }
 
+.dotmatrix--inline {
+  display: inline-grid;
+  margin-right: 8px;
+  vertical-align: middle;
+}
+
 .dotmatrix__punto {
   width: var(--dot-size);
   height: var(--dot-size);
   border-radius: 50%;
-  background: var(--bd2);
+  /* En reposo: sobrio para no competir con el contenido. Mientras procesa,
+     la rejilla gana contraste para comunicar "está pensando" sin añadir
+     decoración (órbitas, brillos o íconos). */
+  background: var(--nt-text-disabled);
   /* seco: el cambio de estado del punto es instantáneo */
   transition: background 0.08s steps(1);
+}
+
+/* Mientras el modelo está redactando, el patrón se hace más visible. El
+   énfasis aparece SOLO cuando hay acción: coherente con Nothing Design. */
+.chat[data-estado='responding'] .dotmatrix__punto,
+.chat[data-estado='waiting'] .dotmatrix__punto,
+.chat[data-estado='enviando'] .dotmatrix__punto,
+.chat[data-estado='herramienta'] .dotmatrix__punto,
+.chat[data-estado='thinking'] .dotmatrix__punto,
+.chat[data-estado='analizando'] .dotmatrix__punto,
+.chat[data-estado='procesando'] .dotmatrix__punto {
+  background: color-mix(in srgb, var(--t3) 70%, transparent);
 }
 
 .dotmatrix__punto--on { background: var(--t1); }
@@ -94,6 +123,7 @@
 @media (prefers-reduced-motion: reduce) {
   .dotmatrix__punto { transition: none; }
   .msg { animation: none !important; }
+  .msg__acciones { transition: none !important; }
 }
 
 /* ═══════════════════ HILO ═══════════════════ */
@@ -149,6 +179,10 @@
   margin: 0;
   font-size: var(--nd-body-sm);
   color: var(--t3);
+  /* Sin balance, el "o" de la unión quedaba solo al final de una línea.
+     Balance reparte las líneas del párrafo en vez de llenarlas a lo bruto. */
+  text-wrap: balance;
+  max-width: 52ch;
 }
 
 .chips {
@@ -225,6 +259,14 @@
   font-weight: 300;
   line-height: 1.55;
   color: var(--t1);
+  /* La columna daba 672px = ~92 caracteres por línea (medido), muy por encima
+     de los ~65 que se leen bien. El límite va en el texto del asistente, no en
+     la columna: el encabezado y el composer siguen alineados.
+
+     58ch, no 65ch, y el número está medido: en Space Grotesk 15px el `0` mide
+     10px, así que 65ch son 650px, y ahí caben ~72 caracteres reales (no 65).
+     58ch = 580px ≈ 64 caracteres. */
+  max-width: 58ch;
   /* Ya no hay `pre-wrap`: el texto pasa por MdTexto, que produce un nodo por
      párrafo. Con pre-wrap los saltos del markdown se duplicaban (línea en
      blanco en el origen + <p> + espacio entre bloques). */
@@ -352,6 +394,26 @@
   flex-wrap: wrap;
   gap: 6px;
 }
+
+/* Cuatro acciones por mensaje llenaban la conversación de filas de píldoras.
+   Solo se ven en el último mensaje, o al apuntar o enfocar uno anterior.
+   `pointer-events: none` porque con opacity:0 un botón invisible sigue
+   recibiendo clics encima del texto que tiene debajo. */
+.msg--agent:not(:last-child) .msg__acciones {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .msg--agent:not(:last-child):hover .msg__acciones,
+  .msg--agent:not(:last-child):focus-within .msg__acciones {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+/* La meta NO se oculta nunca: es la medición real del turno ([12.4S · 45
+   TOKENS]), no un control. Lo que se repliega son las acciones. */
 
 /* Botón fantasma: borde fino, mono, mayúsculas, píldora. */
 .fantasma {

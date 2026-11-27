@@ -94,7 +94,9 @@ public class ResponderFallbackTests
             new ConversationalRequest("¿cuánto peso tengo?", null, Contexto()));
 
         Assert.True(r.UsaFallback);
-        Assert.Contains("Mediciones", r.Texto);
+        // Con la ruta, no con el nombre de la vista: la ruta es lo que el
+        // cliente convierte en botón (ver RedireccionDesdeTextoTests).
+        Assert.Contains("/mediciones", r.Texto, StringComparison.Ordinal);
         Assert.DoesNotContain("kg", r.Texto);
     }
 

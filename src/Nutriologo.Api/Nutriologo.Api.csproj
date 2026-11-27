@@ -16,4 +16,11 @@
     <ProjectReference Include="..\Nutriologo.Infrastructure\Nutriologo.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- `RedireccionDesdeTexto` decide si la respuesta del asistente lleva el
+         botón a otra vista. Es regla de contrato, no detalle de implementación:
+         la suite de integración tiene que poder fijarla. -->
+    <InternalsVisibleTo Include="Nutriologo.Integration.Tests" />
+  </ItemGroup>
+
 </Project>

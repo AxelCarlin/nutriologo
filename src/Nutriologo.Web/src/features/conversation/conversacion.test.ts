@@ -104,7 +104,7 @@ describe('ConversacionView — estructura', () => {
   it('estado vacío: título, sugerencias y un único indicador en el encabezado', () => {
     const w = mount(ConversacionView)
 
-    expect(w.find('.vacio__titulo').text()).toBe('¿qué comiste hoy?')
+    expect(w.find('.vacio__titulo').text()).toBe('¿Qué comiste hoy?')
     expect(w.findAll('.vacio .chip')).toHaveLength(3)
 
     // Un solo indicador, dentro del encabezado, con 25 puntos.
@@ -121,15 +121,56 @@ describe('ConversacionView — estructura', () => {
   })
 
 
-  it('los chips van arriba del input, no abajo', () => {
+  it('las sugerencias viven SOLO en el estado vacío, no sobre el input', () => {
     const w = mount(ConversacionView)
-    const hijos = Array.from(w.find('form.composer').element.children).map(
-      c => c.className,
-    )
-    expect(hijos[0]).toContain('composer__chips')
-    expect(hijos[hijos.length - 1]).toContain('composer__ayuda')
-    // El input queda entre los chips y la línea de atajos.
-    expect(hijos.some(c => c.includes('composer__envoltura'))).toBe(true)
+
+    // Un solo juego de sugerencias en toda la pantalla. La versión anterior
+    // tenía seis píldoras en dos filas: `¿cómo voy hoy?` repetido, y
+    // `¿qué ceno?` preguntando lo mismo que `¿qué puedo cenar?`.
+    expect(w.findAll('.chip')).toHaveLength(3)
+    expect(w.find('.composer__chips').exists()).toBe(false)
+    expect(w.text().match(/cómo voy hoy/gi)).toHaveLength(1)
+
+    // El compositor queda con el campo y la línea de atajos. Nada más.
+    const hijos = Array.from(w.find('form.composer').element.children).map(c => c.className)
+    expect(hijos).toHaveLength(2)
+    expect(hijos[0]).toContain('composer__envoltura')
+    expect(hijos[1]).toContain('composer__ayuda')
+  })
+
+  it('las tres sugerencias son tres intenciones distintas', () => {
+    const w = mount(ConversacionView)
+    const textos = w.findAll('.vacio .chip').map(c => c.text().toLowerCase())
+    expect(textos).toEqual(['armar mi desayuno', '¿cómo voy hoy?', '¿qué puedo cenar?'])
+    expect(new Set(textos).size).toBe(3)
+  })
+
+  it('el encabezado alterna Nueva y Detener: un solo control del turno', async () => {
+    const { w } = await montarCon([frame('token', { texto: 'sigo' })], 30, true)
+    expect(w.find('.chat__cabecera .fantasma').text()).toBe('[NUEVA]')
+
+    await enviar(w)
+    await new Promise(r => setTimeout(r, 60))
+
+    // Mientras redacta, el encabezado ofrece Detener y no Nueva.
+    expect(w.find('.chat__cabecera .fantasma').text()).toBe('[DETENER]')
+    expect(w.findAll('.chat__cabecera .fantasma')).toHaveLength(1)
+
+    // Y el botón de enviar no es un segundo control del turno: está
+    // deshabilitado y fuera de la ruta de tabulación.
+    const btn = w.find('.composer__enviar')
+    expect(btn.attributes('disabled')).toBeDefined()
+    expect(btn.attributes('aria-hidden')).toBe('true')
+    expect(btn.attributes('tabindex')).toBe('-1')
+  })
+
+  it('el botón de enviar se arma solo con texto', async () => {
+    const w = mount(ConversacionView)
+    expect(w.find('.composer__enviar').attributes('disabled')).toBeDefined()
+    expect(w.find('.composer__area').attributes('placeholder')).toBe('Escribe tu mensaje')
+
+    await w.find('textarea').setValue('hola')
+    expect(w.find('.composer__enviar').attributes('disabled')).toBeUndefined()
   })
 
   it('el botón [BAJAR] está fuera del hilo para no tapar el texto', async () => {
@@ -339,8 +380,9 @@ describe('ConversacionView — interrupciones', () => {
     expect(w.text()).toContain('Empiezo la respuesta y')
     expect(w.find('.estado__etiqueta').text()).toBe('[RESPONDIENDO]')
 
-    // Cortar mientras sigue llegando.
-    await w.find('.composer__enviar').trigger('click')
+    // Cortar mientras sigue llegando. Detener vive en el encabezado, que es
+    // donde está el estado del turno.
+    await w.find('.chat__cabecera .fantasma').trigger('click')
     await flushPromises()
 
     expect(w.find('.estado__etiqueta').text()).toBe('[DETENIDO]')
@@ -376,7 +418,10 @@ describe('ConversacionView — interrupciones', () => {
     await enviar(w, 'primero')
     await new Promise(r => setTimeout(r, 10))
 
-    // [NUEVA] aborta la corrida e invalida su runId.
+    // [DETENER] corta la corrida 1; recién entonces aparece [NUEVA], que es la
+    // que además invalida el runId.
+    await w.find('.chat__cabecera .fantasma').trigger('click')
+    await flushPromises()
     await w.find('.chat__cabecera .fantasma').trigger('click')
 
     // Corrida 2: su resultado es el único que queda en el hilo.

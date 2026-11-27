@@ -239,7 +239,7 @@ public static class ChatEndpoints
             // guarda en la vista de Registro con los datos ya cargados.
             await turnos.LimpiarDraftAsync(conversacion);
             return await CerrarConRedireccionAsync(turnos, idUsuario, itemsListos,
-                "Listo. Te llevé los datos al formulario: revisá y guardá vos.");
+                "Listo: te llevé los datos al formulario. Revísalos y guárdalos tú.");
         }
 
         // ============ 1. INTÉRPRETE LLM: clasifica intención + extrae candidatos ============
@@ -330,7 +330,12 @@ public static class ChatEndpoints
             await turnos.GuardarMensajeAsync(conv, true, r.Texto, idTipo: 1);
             await turnos.GuardarMensajeAsync(conv, false, respuesta.Texto, idTipo: 1);
 
-            return new ChatTurnResult("respuesta", Texto: respuesta.Texto, Fallback: respuesta.UsaFallback);
+            // La ruta conversacional no armaba redirección: el respondedor decía
+            // "ve a tu pantalla de registro" y el cliente no tenía ni un enlace.
+            // Se traduce la ruta que el propio modelo escribió (ver abajo).
+            return new ChatTurnResult("respuesta", Texto: respuesta.Texto,
+                Fallback: respuesta.UsaFallback,
+                Redireccion: RedireccionDesdeTexto(respuesta.Texto));
         }
 
         // ============ 3. INTENCIONES QUE EL CHAT NO PUEDE EJECUTAR ============
@@ -359,7 +364,7 @@ public static class ChatEndpoints
 
             if (interp.Intent == AiIntent.CrearObjetivo)
                 return await RedirigirAsync(turnos, idUsuario, r.Texto, "objetivo", "CALCULAR MI OBJETIVO",
-                    "La meta se calcula con tus datos y las reglas de seguridad. Te llevo a la pantalla para que la confirmes vos.");
+                    "La meta se calcula con tus datos y las reglas de seguridad. Te llevo a la pantalla para que la confirmes tú.");
         }
 
         var decision = ClarificationPolicy.Decide(interp);
@@ -372,7 +377,7 @@ public static class ChatEndpoints
         }
 
         if (interp.Intent != AiIntent.RegistrarComida)
-            return new ChatTurnResult("aclaracion", Pregunta: "¿Qué querés que analicemos: tu balance, tus comidas o un alimento?", Motivo: "intención no soportada aún");
+            return new ChatTurnResult("aclaracion", Pregunta: "¿Qué quieres que analicemos: tu balance, tus comidas o un alimento?", Motivo: "intención no soportada aún");
 
         // Normalizar SIEMPRE: el LLM dice "unidad"/"pieza"/"gr" y el formulario
         // busca por código de UnidadMedida. Sin esto, "Unidad desconocida".
@@ -398,7 +403,7 @@ public static class ChatEndpoints
             var conversacion = await turnos.ObtenerConversacionAsync(idUsuario);
             await turnos.GuardarMensajeAsync(conversacion, true, r.Texto, idTipo: 1);
             var pregunta = MealSlotTracker.PreguntaPara(draft)
-                ?? "¿Qué comiste? Indicá alimento y cantidad.";
+                ?? "¿Qué comiste? Indica el alimento y la cantidad.";
             await turnos.GuardarMensajeAsync(conversacion, false, pregunta, idTipo: 2);
             return new ChatTurnResult("aclaracion", Pregunta: pregunta, Motivo: "slot pendiente");
         }
@@ -409,12 +414,12 @@ public static class ChatEndpoints
             .ToList();
 
         if (listos.Count == 0)
-            return new ChatTurnResult("aclaracion", Pregunta: "¿Qué comiste? Indicá alimento y cantidad.", Motivo: "sin cantidades estructuradas");
+            return new ChatTurnResult("aclaracion", Pregunta: "¿Qué comiste? Indica el alimento y la cantidad.", Motivo: "sin cantidades estructuradas");
 
         await turnos.GuardarMensajeAsync(
             await turnos.ObtenerConversacionAsync(idUsuario), true, r.Texto, idTipo: 1);
         return await CerrarConRedireccionAsync(turnos, idUsuario, listos,
-            $"Listo: {listos.Count} {(listos.Count == 1 ? "alimento" : "alimentos")}. Revisá y guardá vos en el formulario.");
+            $"Listo: {listos.Count} {(listos.Count == 1 ? "alimento" : "alimentos")}. Revísalos y guárdalos en el formulario.");
     }
 
     /// <summary>
@@ -429,6 +434,61 @@ public static class ChatEndpoints
         return new ChatTurnResult("redirigir",
             Texto: texto,
             Redireccion: new RedireccionDestino("registrar", "IR A REGISTRAR", items));
+    }
+
+    /// <summary>
+    /// Vistas que el cliente sabe abrir. Es el mismo vocabulario cerrado que
+    /// tiene el frontend: un nombre desconocido no navega a nada.
+    /// </summary>
+    private static readonly (string Vista, string Etiqueta, string[] Alias)[] VistasNombradas =
+    [
+        ("registrar",  "IR A REGISTRAR",      ["/registrar", "pantalla de registro"]),
+        ("mediciones", "IR A MEDICIONES",     ["/mediciones", "pantalla de mediciones"]),
+        ("objetivo",   "CALCULAR MI OBJETIVO", ["/objetivo", "pantalla de objetivo"]),
+        ("perfil",     "ABRIR MI PERFIL",     ["/perfil", "pantalla de perfil"]),
+    ];
+
+    /// <summary>
+    /// Traduce "ve a /registrar" en el botón que faltaba.
+    /// <para>El respondedor está instruido a NOMBRAR la vista cuando el usuario
+    /// tiene que hacer algo en otro lado, pero el resultado de esa ruta no
+    /// llevaba <c>Redireccion</c>: el texto decía "ve a tu pantalla de registro"
+    /// y la interfaz no tenía ni un enlace. El estado vacío promete "te llevo al
+    /// formulario"; sin esto, la promesa moría en el texto.</para>
+    /// <para>Gana la ruta que aparece PRIMERO en el texto, no la de una lista
+    /// fija: "ve a /objetivo y luego a /registrar" ofrece /objetivo, que es lo
+    /// que el modelo pidio primero. Y solo se aceptan rutas literales o la frase
+    /// "pantalla de X": la palabra "objetivo" suelta ("tu objetivo es perder
+    /// peso") NO cuenta, o el botón aparecería en respuestas que no invitan a
+    /// ir a ninguna parte.</para>
+    /// </summary>
+    internal static RedireccionDestino? RedireccionDesdeTexto(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto)) return null;
+
+        var t = texto.ToLowerInvariant();
+        var mejor = -1;
+        string? vistaElegida = null, etiquetaElegida = null;
+
+        foreach (var (vista, etiqueta, alias) in VistasNombradas)
+        {
+            foreach (var forma in alias)
+            {
+                var i = t.IndexOf(forma, StringComparison.Ordinal);
+                if (i < 0) continue;
+                if (mejor < 0 || i < mejor)
+                {
+                    mejor = i;
+                    vistaElegida = vista;
+                    etiquetaElegida = etiqueta;
+                }
+                break; // la primera forma de esta vista ya basta
+            }
+        }
+
+        return mejor < 0 || vistaElegida is null || etiquetaElegida is null
+            ? null
+            : new RedireccionDestino(vistaElegida, etiquetaElegida, Array.Empty<ItemRedirigido>());
     }
 
     /// <summary>Redirección simple (sin datos que llevar).</summary>

@@ -1,40 +1,36 @@
 <template>
   <div class="chat" :data-estado="uiState">
-    <!-- ══════ ENCABEZADO: único indicador + única etiqueta de estado ══════ -->
+    <!-- ══════ ENCABEZADO ══════ -->
     <header class="chat__cabecera">
       <div class="col chat__cabecera-int">
-        <!-- role="status": el ÚNICO live region del chat -->
-        <div class="estado" role="status" :aria-label="`Estado del asistente: ${etiqueta}`">
-          <span class="dotmatrix" aria-hidden="true">
-            <span
-              v-for="(on, i) in celdas"
-              :key="i"
-              class="dotmatrix__punto"
-              :class="{ 'dotmatrix__punto--on': on }"
-            />
-          </span>
-          <span class="estado__etiqueta">{{ etiqueta }}</span>
+        <div class="estado__cabecera">
+          <span class="estado__etiqueta" aria-hidden="true">{{ etiqueta }}</span>
         </div>
 
-        <button class="fantasma" type="button" @click="nueva" aria-label="Nueva conversación">
-          [NUEVA]
-        </button>
+        <!-- Solo Nueva cuando NO hay un turno en vuelo. El control de Detener
+             pasa al botón de enviar, junto a la acción. -->
+        <button
+          v-if="!enviando"
+          class="fantasma"
+          type="button"
+          @click="nueva"
+          aria-label="Nueva conversación"
+        >[NUEVA]</button>
       </div>
     </header>
 
     <!-- ══════ HILO ══════ -->
     <main ref="hiloRef" class="col chat__hilo" role="log" :aria-busy="enviando" @scroll.passive="onScroll">
-      <!-- Estado vacío -->
+      <!-- Estado vacío: el ÚNICO juego de sugerencias de la pantalla. -->
       <div v-if="!hayMensajes && !msgViva" class="vacio">
-        <h1 class="vacio__titulo">¿qué comiste hoy?</h1>
-        <p class="vacio__sub">contame qué comiste y te llevo al formulario, o preguntame lo que quieras</p>
+        <h1 class="vacio__titulo">¿Qué comiste hoy?</h1>
+        <p class="vacio__sub">Cuéntame qué comiste y te llevo al formulario, o pregúntame lo que quieras</p>
         <div class="chips" role="group" aria-label="Sugerencias">
           <button
             v-for="s in sugerencias"
             :key="s.texto"
             type="button"
             class="chip"
-            :disabled="enviando"
             @click="enviarTexto(s.envio)"
           >
             {{ s.texto }}
@@ -113,7 +109,12 @@
 
         <!-- ───────── MENSAJE EN CURSO: dueño de sus pasos, meta y cursor ───────── -->
         <li v-if="msgViva" class="msg msg--agent msg--viva" :aria-label="'Respuesta en curso'">
-          <p class="msg__firma">NUTRIÓLOGO</p>
+          <p class="msg__firma">
+            <span v-if="enviando" class="dotmatrix dotmatrix--inline" aria-hidden="true">
+              <span v-for="(on, i) in celdas" :key="i" class="dotmatrix__punto" :class="{ 'dotmatrix__punto--on': on }" />
+            </span>
+            <span class="msg__firma-nombre">NUTRIÓLOGO</span>
+          </p>
 
           <details v-if="msgViva.pasos.length" class="pasos" :open="!msgViva.pasosColapsados">
             <summary class="pasos__resumen">{{ resumenPasos(msgViva) }}</summary>
@@ -160,19 +161,9 @@
     <!-- ══════ COMPOSER: misma columna, mismo ancho, mismo padding ══════ -->
     <footer class="chat__pie">
       <form class="col composer" @submit.prevent="enviar()">
-        <!-- Chips ARRIBA del input, como en la referencia: funcionan como
-             atajos de entrada, no como un bloque aparte bajo el compositor. -->
-        <div class="composer__chips" role="group" aria-label="Sugerencias rápidas">
-          <button
-            v-for="s in chips"
-            :key="s"
-            type="button"
-            class="chip"
-            :disabled="enviando"
-            @click="usarChip(s)"
-          >{{ s }}</button>
-        </div>
-
+        <!-- Solo el campo. Las sugerencias viven en el estado vacío y en ningún
+             otro lado: repetidas sobre el input ocupaban 25% de la pantalla del
+             móvil y seguían ahí después de haberlas usado. -->
         <div class="composer__envoltura" :data-bloqueado="enviando">
           <textarea
             ref="areaRef"
@@ -187,20 +178,16 @@
             @keydown.esc.prevent="detener()"
           />
 
+          <!-- Un botón, siempre en su sitio: no hay salto de layout al pasar de
+               idle a trabajando. Detener vive en el encabezado, así que acá no
+               hay un segundo control del turno. -->
           <button
-            v-if="enviando"
-            class="composer__enviar"
-            type="button"
-            aria-label="Detener la respuesta"
-            @click="detener()"
-          >■</button>
-          <button
-            v-else
             class="composer__enviar"
             type="submit"
-            :disabled="!texto.trim()"
-            aria-label="Enviar mensaje"
-          >↑</button>
+            :disabled="!puedeEnviar && !enviando"
+            :aria-label="enviando ? 'Detener respuesta' : 'Enviar mensaje'"
+            @click="enviando ? detener() : undefined"
+          >{{ enviando ? '■' : '↑' }}</button>
         </div>
 
         <p class="composer__ayuda">ENTER envía · SHIFT+ENTER salta de línea · ESC detiene</p>
@@ -319,17 +306,20 @@ const mostrarBajar = ref(false)
 const areaRef = ref<HTMLTextAreaElement | null>(null)
 const hiloRef = ref<HTMLElement | null>(null)
 
-const placeholder = 'escribe tu mensaje'
+const placeholder = 'Escribe tu mensaje'
 
 const router = useRouter()
 
+/**
+ * Sugerencias del estado vacío. Tres, y tres intenciones DISTINTAS: la versión
+ * anterior tenía seis píldoras en dos filas, con `¿cómo voy hoy?` repetido y
+ * `¿qué ceno?` preguntando lo mismo que `¿qué puedo cenar?`.
+ */
 const sugerencias = [
-  { texto: 'ARMAR MI DESAYUNO', envio: 'comí dos huevos y dos tostadas' },
-  { texto: '¿CÓMO VOY HOY?', envio: '¿cómo voy hoy?' },
-  { texto: '¿QUÉ COMO DE CENA?', envio: '¿qué puedo cenar hoy?' },
+  { texto: 'Armar mi desayuno', envio: 'comí dos huevos y dos tostadas' },
+  { texto: '¿Cómo voy hoy?', envio: '¿cómo voy hoy?' },
+  { texto: '¿Qué puedo cenar?', envio: '¿qué puedo cenar hoy?' },
 ]
-
-const chips = ['¿cómo voy hoy?', '¿qué ceno?', '¿qué comí?']
 
 // ════════════════════════════════════════════════════════════
 // CONTROL DE CONCURRENCIA
@@ -350,6 +340,9 @@ const transcurrido = computed(() => {
 })
 
 const hayMensajes = computed(() => mensajes.value.length > 0)
+
+/** El botón de enviar solo se arma con texto y sin turno en vuelo. */
+const puedeEnviar = computed(() => !enviando.value && texto.value.trim().length > 0)
 
 function token(): string {
   return localStorage.getItem('nutriologo_token') ?? ''
@@ -490,12 +483,6 @@ function onScroll() {
 // ════════════════════════════════════════════════════════════
 // ACCIONES DE LA VISTA
 // ════════════════════════════════════════════════════════════
-
-function usarChip(t: string) {
-  texto.value = t
-  areaRef.value?.focus()
-  void enviar()
-}
 
 async function copiar(t: string) {
   try {

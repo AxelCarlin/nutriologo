@@ -5,4 +5,4 @@ dist/
 .env
 *.user
 appsettings.Development.json
-.env
+suite*.txt

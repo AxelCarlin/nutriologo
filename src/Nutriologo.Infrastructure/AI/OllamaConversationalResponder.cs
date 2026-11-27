@@ -29,40 +29,45 @@ public sealed class OllamaConversationalResponder : IConversationalResponder
     }
 
     public const string ConversationalSystemPrompt = """
-Eres el nutriólogo del usuario. Responde en español, tono cercano y profesional.
+Eres el nutriólogo del usuario. Respondes en español de España, en TUTEO, y con las
+frases en mayúscula normal. Tono cercano y profesional.
 
 REGLAS OBLIGATORIAS:
+- HABLA EN TUTEO. Formas prohibidas: contame, preguntame, podés, querés, tenés, revisá, guardá, indicá, llevás, escribís, pensás, priorizá. No escribas ninguna, ni en una respuesta ni en un ejemplo.
 - NUNCA calcules kcal, macros, riesgos, IMC, TMB, ritmos: usa SOLO los datos que te pasan en ContextoUsuario.
-- NUNCA digas que registraste, guardaste o anotaste algo. NO TENES esa capacidad: no escribís en la base.
-  Si el usuario te pide guardar algo, responde con un texto que Invite a hacerlo él en su pantalla y nombra la vista.
-- Solo hablás de SU información: la del usuario de ContextoUsuario, sus planes
-  alimentarios y los alimentos del catálogo. Jamás menciones datos de otra persona,
-  otros usuarios ni información que no esté en el contexto.
-- Si falta un dato necesario → di DÓNDE está (ej: "Tu objetivo no está definido. Ve a /objetivo para calcularlo").
-- Máximo 3 frases por respuesta. Una pregunta de seguimiento si procede.
+- NUNCA digas que registraste, guardaste o anotaste algo. NO TIENES esa capacidad: no escribes en la base.
+- CONTESTAS DE FRENTE, sin relleno. Nada de "¡Excelente pregunta!", "¡Vamos allá!",
+  "para mantenerte en el camino correcto", "espero que te sirva" ni comentarios de
+  ánimo al final.
+  La última frase NO es una pregunta de cortesía: si te falta un dato, pregunta por el
+  dato ("¿Cuánto comiste?"); si no te falta nada, termina en la respuesta.
+- Cuando el usuario tenga que hacer algo en otra pantalla, NÓMBRALA con su ruta exacta
+  (/registrar, /mediciones, /objetivo, /perfil). La interfaz convierte esa ruta en un
+  botón: sin la ruta no hay botón y la respuesta queda muerta.
+- Máximo 3 frases por respuesta. Una pregunta de seguimiento como máximo, y solo si hace falta.
 - Usa cifras EXACTAS del contexto: "Llevas {kcal} kcal hoy de {meta} kcal de meta."
 - NO inventes números. Si el contexto no tiene un dato, di que no lo tienes.
 - Si el usuario pregunta fuera de nutrición → redirige amablemente: "Eso no lo puedo responder, pero te ayudo con tu alimentación."
 - Si ContextoUsuario es null o incompleto → usa el fallback provisto por el sistema.
 
-VISTAS DONDE EL USUARIO CARGA SUS DATOS (nombralas cuando le pidas guardar algo):
+VISTAS DONDE EL USUARIO CARGA SUS DATOS (nómbralas cuando le pidas guardar algo):
 /registrar (comidas) · /mediciones (peso y medidas) · /objetivo (meta calórica) · /perfil (datos personales)
 
 EJEMPLOS (placeholders, NO números reales):
 Usuario: "¿Cómo voy hoy?"
-Asistente: "Llevas {kcal} kcal de {meta} kcal hoy. Has comido {n_comidas} veces ({lista_comidas}). Tu meta es {tipo_objetivo} a {ritmo} kg/sem. ¿Qué pensás para la cena?"
+Asistente: "Llevas {kcal} kcal hoy de {meta} kcal de meta, en {n_comidas} comidas ({lista_comidas}). Tu meta es {tipo_objetivo}."
 
 Usuario: "¿Qué ceno?"
-Asistente: "Te quedan ~{restante} kcal para tu meta. Con tu objetivo de {tipo_objetivo}, prioriza proteína y vegetales. ¿Te apetece {sugerencia}?"
+Asistente: "Te quedan {restante} kcal. Con tu objetivo de {tipo_objetivo}, prioriza proteína y verduras: {sugerencia}."
 
 Usuario: "Registré el desayuno" (NO lo hizo: el chat nunca escribe)
-Asistente: "No puedo guardar registros desde acá; esa carga se hace en tu pantalla de registro. Si me decís qué comiste, te armo la lista y la llevás cargada."
+Asistente: "No puedo guardar registros desde aquí; esa carga se hace en tu pantalla. Si me dices qué comiste, te armo la lista y la llevo cargada a /registrar."
 
 Usuario: "¿Cuánto peso?" (sin peso en contexto)
 Asistente: "No tengo tu peso actual. Regístralo en /mediciones o actualiza tu perfil en /perfil."
 
 Usuario: "Hola"
-Asistente: "¡Hola! ¿En qué te ayudo con tu alimentación hoy?"
+Asistente: "Hola. Dime qué comiste o qué quieres consultar."
 """;
 
     public async Task<ConversationalResponse> ResponderAsync(ConversationalRequest request, CancellationToken ct = default)
@@ -510,6 +515,8 @@ Asistente: "¡Hola! ¿En qué te ayudo con tu alimentación hoy?"
     /// Regla: solo afirma lo que está medido en el contexto, y lo dice sin rodeos.
     /// Antes devolvía siempre "¿Qué te gustaría registrar o consultar?", que no
     /// respondía nada: el usuario veía la misma frase para cualquier pregunta.
+    /// <para>Tuteo, sin voseo, y con la ruta de la vista nombrada cuando hay que
+    /// ir a otro lado: el cliente saca de ahí el botón.</para>
     /// </summary>
     private static ConversationalResponse Fallback(ContextoUsuario? ctx, string userText)
     {
@@ -517,7 +524,7 @@ Asistente: "¡Hola! ¿En qué te ayudo con tu alimentación hoy?"
 
         // Saludos y despedidas: no necesitan datos.
         if (EsSaludo(t))
-            return new ConversationalResponse("Hola. Contame qué comiste o qué querés consultar.", UsaFallback: true);
+            return new ConversationalResponse("Hola. Cuéntame qué comiste o qué quieres consultar.", UsaFallback: true);
         if (EsDespedida(t))
             return new ConversationalResponse("Hasta luego.", UsaFallback: true);
 
@@ -529,7 +536,7 @@ Asistente: "¡Hola! ¿En qué te ayudo con tu alimentación hoy?"
         if (t.Contains("peso") || t.Contains("cuánto pes") || t.Contains("cuanto pes"))
         {
             if (peso == null)
-                return new ConversationalResponse("No tengo mediciones de tu peso todavía. Registralas en Mediciones.", UsaFallback: true);
+                return new ConversationalResponse("No tengo mediciones de tu peso todavía. Regístralas en /mediciones.", UsaFallback: true);
             var delta = peso.DeltaKg is null
                 ? "no tengo una medición anterior para comparar."
                 : $"{(peso.DeltaKg.Value >= 0 ? "+" : "")}{Num(peso.DeltaKg.Value, 1)} kg respecto de la anterior.";
@@ -540,7 +547,7 @@ Asistente: "¡Hola! ¿En qué te ayudo con tu alimentación hoy?"
         if (t.Contains("objetivo") || t.Contains("meta"))
         {
             if (objetivo == null)
-                return new ConversationalResponse("No tenés una meta calórica definida. Calculala en Objetivo.", UsaFallback: true);
+                return new ConversationalResponse("No tienes una meta calórica definida. Calcúlala en /objetivo.", UsaFallback: true);
             return new ConversationalResponse($"Tu objetivo es {objetivo.Tipo.ToLowerInvariant()} en {Num(objetivo.MetaKcal)} kcal diarias. Riesgo evaluado: {objetivo.Riesgo.ToLowerInvariant()}.", UsaFallback: true);
         }
 
@@ -550,7 +557,7 @@ Asistente: "¡Hola! ¿En qué te ayudo con tu alimentación hoy?"
         {
             var comidas = hoy?.Comidas;
             if (comidas == null || comidas.Length == 0)
-                return new ConversationalResponse("Hoy todavía no tenés comidas registradas.", UsaFallback: true);
+                return new ConversationalResponse("Hoy todavía no tienes comidas registradas.", UsaFallback: true);
 
             // Con muchas comidas se listan las últimas: volcar las 17 del día
             // no es una respuesta, es un volcado.
@@ -567,13 +574,13 @@ Asistente: "¡Hola! ¿En qué te ayudo con tu alimentación hoy?"
             || t.Contains("qué tal") || t.Contains("que tal") || t.Contains("cómo vengo"))
         {
             if (hoy == null || (hoy.KcalConsumidas == 0 && (hoy.Comidas?.Length ?? 0) == 0))
-                return new ConversationalResponse("Hoy todavía no tenés comidas registradas, así que no hay balance para mostrar.", UsaFallback: true);
+                return new ConversationalResponse("Hoy todavía no tienes comidas registradas, así que no hay balance que mostrar.", UsaFallback: true);
 
             var kcal = hoy.KcalConsumidas;
             var m = hoy.Macros;
             var cabecera = hoy.MetaKcal is { } meta
-                ? $"Llevás {Num(kcal)} de {Num(meta)} kcal hoy"
-                : $"Llevás {Num(kcal)} kcal hoy y no tenés meta definida";
+                ? $"Llevas {Num(kcal)} de {Num(meta)} kcal hoy"
+                : $"Llevas {Num(kcal)} kcal hoy y no tienes meta definida";
             var quedan = hoy.MetaKcal is { } mk ? $" Te quedan {Num(Math.Max(0, mk - kcal))} kcal." : "";
             var macros = $" Proteínas {Num(m.ProteinaG)} g, grasas {Num(m.GrasaG)} g, carbohidratos {Num(m.CarbohidratoG)} g.";
             return new ConversationalResponse(cabecera + "." + quedan + macros, UsaFallback: true);
@@ -588,7 +595,7 @@ Asistente: "¡Hola! ¿En qué te ayudo con tu alimentación hoy?"
 
         var cierre = opciones.Count > 0
             ? "Ahora mismo puedo responderte por " + string.Join(", ", opciones) + "."
-            : "Todavía no tenés datos registrados, así que no hay nada que resumir.";
+            : "Todavía no tienes datos registrados, así que no hay nada que resumir.";
 
         return new ConversationalResponse($"No pude responder eso con detalle.{cierre}", UsaFallback: true);
     }

@@ -4,12 +4,17 @@
    Comparte la clase `.col` con el encabezado y el hilo: es la única
    forma de garantizar que la línea superior del compositor caiga en los
    mismos píxeles que la columna del contenido.
+
+   Espaciado: escala de 4px (4/8/12/16/20). Los valores anteriores
+   (14, 9, 10, 10) no seguían ninguna escala y dejaban 10px bajo el texto.
    ═══════════════════════════════════════════════════════════════ */
 
 .chat__pie {
   border-top: 1px solid var(--bd);
   background: var(--bg);
-  padding-block: 12px calc(12px + var(--safe-bottom));
+  /* 16px arriba y abajo, y el safe-area del móvil sumándose: con 12px el
+     borde inferior de la barra del sistema quedaba pegado al campo. */
+  padding-block: 16px calc(16px + var(--safe-bottom));
 }
 
 .composer {
@@ -18,19 +23,24 @@
   gap: 8px;
 }
 
+/* Píldora de contornos, sin relleno.
+   El relleno anterior (--sf #0d0d0d) daba 1.07:1 contra el fondo: no se leía
+   como componente, se leía como una sombra. En una interfaz de contornos el
+   campo se define por su borde, y ese borde va en --t3 (6.25:1) en reposo y
+   en --t1 con el foco dentro. */
 .composer__envoltura {
   display: flex;
-  align-items: flex-end;
+  align-items: center;        /* Centro óptico: texto y botón centrados verticalmente */
   gap: 8px;
-  border: 1px solid var(--bd2);
-  border-radius: var(--nd-radius-field);
-  padding: 8px 8px 8px 14px;
-  background: var(--sf);
+  border: 1px solid var(--t3);
+  border-radius: var(--nd-radius-pill);
+  padding: 12px 12px 12px 20px;
+  background: transparent;
   transition: border-color var(--d1) var(--fl);
 }
 
 .composer__envoltura:focus-within {
-  border-color: var(--t3);
+  border-color: var(--t1);
 }
 
 /* Bloqueado mientras hay una petición en vuelo. Sin `opacity` sobre todo el
@@ -60,40 +70,60 @@
    --t2 mantiene el contraste sin competir con el texto que se escribe. */
 .composer__area::placeholder { color: var(--t2); }
 
-.composer__area:focus { outline: none; }
+.composer__area:focus,
+.composer__area:focus-visible,
+.composer__area:active {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
 
 .composer__enviar {
+  position: relative;
   flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
   font-family: var(--nd-font-mono);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1;
-  color: var(--t1);
-  background: transparent;
-  border: 1px solid var(--bd2);
+  /* Con texto escrito el botón es blanco sobre negro (21:1): se lee como la
+     acción disponible. Antes era una flecha blanca sobre el fondo del campo,
+     con un borde de 2.37:1, y parecía un control apagado. */
+  color: var(--bg);
+  background: var(--t1);
+  border: 1px solid var(--t1);
   border-radius: var(--nd-radius-pill);
   cursor: pointer;
   transition: background var(--d1) steps(2), border-color var(--d1) var(--fl), color var(--d1) var(--fl);
 }
 
+/* Zona táctil de 44px sin agrandar la caja visible: el tiro del dedo llega 4px
+   más allá del borde sin que el campo cambie de alto ni de ancho. */
+.composer__enviar::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+}
+
 @media (hover: hover) {
   .composer__enviar:hover:not(:disabled) {
-    background: var(--t1);
+    background: var(--t2);
     color: var(--bg);
-    border-color: var(--t1);
+    border-color: var(--t2);
   }
 }
 
 .composer__enviar:active { transform: translateY(2px); }
-.composer__enviar:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.composer__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+/* Sin texto (o con un turno en vuelo) el botón se atenúa: mismo sitio, sin
+   fingir que hay nada que enviar. */
+.composer__enviar:disabled {
+  color: var(--t3);
+  background: transparent;
+  border-color: var(--bd2);
+  cursor: not-allowed;
 }
 
 .composer__ayuda {
@@ -106,9 +136,28 @@
   color: var(--t3);
 }
 
-.composer :focus-visible {
-  outline: 2px solid var(--t1);
-  outline-offset: 2px;
+.composer__area:focus-visible,
+.composer__envoltura:focus-within,
+.composer__enviar:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ═══════════════════ PUNTERO GRUESO (teléfono) ═══════════════════
+   Los atajos son de teclado: ENTER, SHIFT+ENTER y ESC no existen en un
+   teléfono. Ocupaban 29px — dos líneas, con ESC huérfano — para no
+   informar nada. Y todo lo que se toca baja a 44px. */
+
+@media (pointer: coarse) {
+  .composer__ayuda { display: none; }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding-block: 0;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
